@@ -7,6 +7,7 @@ import {
   getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -28,7 +39,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [resetEmail, setResetEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
   const router = useRouter();
   const { toast } = useToast();
   const auth = getAuth(app);
@@ -112,6 +127,32 @@ export default function LoginPage() {
     }
   };
 
+  const handlePasswordReset = async () => {
+    if (!resetEmail) {
+      toast({ title: "Erro", description: "Por favor, insira um e-mail válido.", variant: "destructive" });
+      return;
+    }
+    setIsResetting(true);
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      toast({
+        title: "Link Enviado!",
+        description: `Um link para redefinição de senha foi enviado para ${resetEmail}. Verifique sua caixa de entrada.`,
+      });
+      setIsDialogOpen(false);
+      setResetEmail("");
+    } catch (error: any) {
+      toast({
+        title: "Erro ao Enviar",
+        description: "Não foi possível enviar o e-mail. Verifique se o e-mail está correto e tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background">
       <div className="flex items-center gap-2 mb-4">
@@ -146,7 +187,44 @@ export default function LoginPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password-login">Senha</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password-login">Senha</Label>
+                   <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <DialogTrigger asChild>
+                       <Button variant="link" className="p-0 h-auto text-xs">
+                          Esqueceu sua senha?
+                       </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Recuperar Senha</DialogTitle>
+                        <DialogDescription>
+                          Digite seu e-mail abaixo para receber um link de redefinição de senha.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-2 py-4">
+                        <Label htmlFor="reset-email">E-mail</Label>
+                        <Input 
+                          id="reset-email" 
+                          type="email" 
+                          placeholder="seu@email.com"
+                          value={resetEmail}
+                          onChange={(e) => setResetEmail(e.target.value)}
+                          disabled={isResetting}
+                        />
+                      </div>
+                      <DialogFooter>
+                        <DialogClose asChild>
+                          <Button variant="outline" disabled={isResetting}>Cancelar</Button>
+                        </DialogClose>
+                        <Button onClick={handlePasswordReset} disabled={isResetting}>
+                          {isResetting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Enviar Link
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                   </Dialog>
+                </div>
                 <Input
                   id="password-login"
                   type="password"
@@ -207,3 +285,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
