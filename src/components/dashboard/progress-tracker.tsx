@@ -213,17 +213,20 @@ export function ProgressTracker() {
         leanMass: parseFloat((entry.weight * (1 - entry.bodyFat! / 100)).toFixed(1)),
     }));
   
-  const yDomainBmi = bmiChartData.length > 0
-    ? [Math.floor(Math.min(...bmiChartData.map(d => d.imc), 15) / 2) * 2, Math.ceil(Math.max(...bmiChartData.map(d => d.imc), 32) / 2) * 2]
-    : [14, 36];
-    
-  const yDomainWeight = weightChartData.length > 0
-    ? [Math.floor(Math.min(...weightChartData.map(d => d.weight)) / 5) * 5 - 5, Math.ceil(Math.max(...weightChartData.map(d => d.weight)) / 5) * 5 + 5]
-    : [50, 100];
-    
-  const yDomainLeanMass = leanMassChartData.length > 0
-    ? [Math.floor(Math.min(...leanMassChartData.map(d => d.leanMass)) / 5) * 5 - 5, Math.ceil(Math.max(...leanMassChartData.map(d => d.leanMass)) / 5) * 5 + 5]
-    : [40, 80];
+  const getChartDomain = (data: number[], defaultMin: number, defaultMax: number, padding = 0.1) => {
+      if (data.length === 0) return [defaultMin, defaultMax];
+      const min = Math.min(...data);
+      const max = Math.max(...data);
+      const range = max - min;
+      // Adiciona um "padding" para o gráfico não ficar colado nas bordas
+      const paddedMin = Math.max(0, min - range * padding);
+      const paddedMax = max + range * padding;
+      return [paddedMin, paddedMax];
+  };
+
+  const yDomainWeight = getChartDomain(weightChartData.map(d => d.weight), 50, 100, 0.1);
+  const yDomainBmi = getChartDomain(bmiChartData.map(d => d.imc), 14, 36, 0.15);
+  const yDomainLeanMass = getChartDomain(leanMassChartData.map(d => d.leanMass), 40, 80, 0.1);
 
 
   async function onSubmit(data: ProgressFormValues) {
@@ -302,6 +305,7 @@ export function ProgressTracker() {
   
   const ColoredDot = (props: any) => {
     const { cx, cy, payload } = props;
+    if (!payload?.imc) return null;
     const color = getBmiCategoryColor(payload.imc);
     return <Dot cx={cx} cy={cy} r={4} fill={color} stroke="#fff" strokeWidth={1} />;
   };
@@ -506,7 +510,7 @@ export function ProgressTracker() {
                     <YAxis tickLine={false} axisLine={false} tickMargin={8} domain={yDomainBmi} width={30} fontSize={12} />
                     <Tooltip cursor={true} content={<ChartTooltipContent indicator="dot" labelKey="date" />} />
                     
-                    <ReferenceArea y1={0} y2={18.5} fill="hsl(210 90% 55% / 0.1)" stroke="hsl(210 90% 55% / 0.2)" strokeDasharray="3 3" />
+                    <ReferenceArea y1={yDomainBmi[0]} y2={18.5} fill="hsl(210 90% 55% / 0.1)" stroke="hsl(210 90% 55% / 0.2)" strokeDasharray="3 3" />
                     <ReferenceArea y1={18.5} y2={24.9} fill="hsl(120 60% 47% / 0.1)" stroke="hsl(120 60% 47% / 0.2)" strokeDasharray="3 3" />
                     <ReferenceArea y1={25} y2={29.9} fill="hsl(48 95% 50% / 0.1)" stroke="hsl(48 95% 50% / 0.2)" strokeDasharray="3 3" />
                     <ReferenceArea y1={30} y2={yDomainBmi[1]} fill="hsl(var(--destructive) / 0.1)" stroke="hsl(var(--destructive) / 0.2)" strokeDasharray="3 3" />
@@ -553,5 +557,7 @@ export function ProgressTracker() {
     </Card>
   );
 }
+
+    
 
     
