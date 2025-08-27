@@ -9,7 +9,9 @@ import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
+  User,
 } from "firebase/auth";
+import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
 import { FcGoogle } from "react-icons/fc";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +37,21 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  const saveUserToFirestore = async (user: User) => {
+    const userRef = doc(db, "usuarios", user.uid);
+    const docSnap = await getDoc(userRef);
+    if (!docSnap.exists()) {
+      await setDoc(userRef, {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        createdAt: new Date(),
+      });
+    }
+  };
 
   const handleAuth = async (isLogin: boolean) => {
     setIsLoading(true);
@@ -44,6 +61,11 @@ export default function LoginPage() {
         userCredential = await signInWithEmailAndPassword(auth, email, password);
       } else {
         userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await saveUserToFirestore(userCredential.user);
+        toast({
+          title: "Conta Criada com Sucesso!",
+          description: "Seja bem-vindo(a) ao Vitalize.",
+        });
       }
       const idToken = await userCredential.user.getIdToken();
       await fetch("/api/auth/session", {
@@ -70,6 +92,7 @@ export default function LoginPage() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
+      await saveUserToFirestore(result.user);
       const idToken = await result.user.getIdToken();
       await fetch("/api/auth/session", {
         method: "POST",
