@@ -49,6 +49,7 @@ export default function LoginPage() {
         displayName: user.displayName,
         photoURL: user.photoURL,
         createdAt: new Date(),
+        role: "user", // Adiciona a role padrão
       });
     }
   };
