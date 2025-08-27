@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Permite que usuários autenticados criem um documento para si mesmos
+    // e leiam/atualizem seus próprios dados.
+    match /usuarios/{userId} {
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
+    }
+  }
+}
