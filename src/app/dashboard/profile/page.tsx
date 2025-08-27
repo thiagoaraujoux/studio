@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { getAuth, updateProfile, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import type { User } from "firebase/auth";
-import { doc, setDoc, getDoc, collection, query, orderBy, onSnapshot, Timestamp, deleteDoc, writeBatch } from "firebase/firestore";
+import { doc, setDoc, getDoc, collection, query, orderBy, onSnapshot, Timestamp, deleteDoc } from "firebase/firestore";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, Dot } from "recharts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -29,7 +29,6 @@ import { app, db } from "@/lib/firebase";
 import { Loader2, KeyRound, User as UserIcon, HeartPulse, AreaChart, ArrowLeft, Weight, BarChart, Percent, LineChartIcon, History, Calendar as CalendarIcon, Pencil, Trash2 } from "lucide-react";
 import { ChartContainer } from "@/components/ui/chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -95,31 +94,6 @@ type ProgressEntry = {
     bodyFat?: number | null;
 };
 
-type ChartType = "weight" | "imc" | "leanMass" | "bodyFat";
-
-const chartConfig = {
-  weight: {
-    label: "Peso (kg)",
-    color: "hsl(var(--chart-1))",
-    icon: Weight,
-  },
-  imc: {
-    label: "IMC",
-    color: "hsl(var(--muted-foreground))",
-    icon: AreaChart,
-  },
-  leanMass: {
-    label: "Massa Magra (kg)",
-    color: "hsl(var(--chart-2))",
-    icon: BarChart,
-  },
-  bodyFat: {
-    label: "Gordura Corporal (%)",
-    color: "hsl(var(--chart-4))",
-    icon: Percent,
-  },
-};
-
 const getBmiCategoryColor = (imc: number | null) => {
     if (imc === null) return 'hsl(var(--muted-foreground))';
     if (imc < 18.5) return 'hsl(210 90% 60%)';
@@ -128,26 +102,27 @@ const getBmiCategoryColor = (imc: number | null) => {
     return 'hsl(var(--destructive))';
 };
 
-const CustomTooltipContent = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0];
-      const value = data.value?.toFixed(1);
-      const unit = data.name === 'Gordura Corporal (%)' ? '%' : 'kg';
-      
-      return (
-        <div className="rounded-lg border bg-background p-2 shadow-sm">
-          <div className="grid grid-cols-1 gap-1.5">
-            <p className="text-muted-foreground text-sm">{label}</p>
-            <p className="font-bold text-base" style={{ color: data.stroke }}>
-              {value} {data.name.includes('IMC') ? '' : unit}
-            </p>
-          </div>
+const CustomTooltipContent = ({ active, payload, label, chartType }: { active?: boolean; payload?: any[]; label?: string, chartType: string }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    const value = data.value?.toFixed(1);
+    let unit = "kg";
+    if (chartType === 'imc') unit = '';
+    if (chartType === 'bodyFat') unit = '%';
+
+    return (
+      <div className="rounded-lg border bg-background p-2 shadow-sm">
+        <div className="grid grid-cols-1 gap-1.5">
+          <p className="text-muted-foreground text-sm">{label}</p>
+          <p className="font-bold text-base" style={{ color: payload[0].stroke }}>
+            {value} {unit}
+          </p>
         </div>
-      );
-    }
-  
-    return null;
-  };
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
@@ -157,8 +132,6 @@ export default function ProfilePage() {
   const [isProgressLoading, setIsProgressLoading] = useState(false);
   const [progressHistory, setProgressHistory] = useState<ProgressEntry[]>([]);
   const [height, setHeight] = useState<number | null>(null);
-  const [activeChart, setActiveChart] = useState<ChartType>("weight");
-  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
   const auth = getAuth(app);
@@ -306,47 +279,20 @@ export default function ProfilePage() {
 
     setIsProgressLoading(true);
     try {
+        const dateString = format(data.date, "yyyy-MM-dd");
         const userProgressRef = collection(db, "usuarios", user.uid, "progresso");
-        
-        if (editingEntryId) {
-            // Logic for editing an existing entry
-            const batch = writeBatch(db);
-            const oldDocRef = doc(userProgressRef, editingEntryId);
-            const newDateString = format(data.date, "yyyy-MM-dd");
-            const newProgressDocRef = doc(userProgressRef, newDateString);
+        const progressDocRef = doc(userProgressRef, dateString);
 
-            // Delete the old document first
-            batch.delete(oldDocRef);
+        await setDoc(progressDocRef, {
+            weight: data.weight,
+            bodyFat: data.bodyFat || null,
+            date: Timestamp.fromDate(data.date),
+        }, { merge: true });
 
-            // Set the new document with potentially new date as ID
-            batch.set(newProgressDocRef, {
-                weight: data.weight,
-                bodyFat: data.bodyFat || null,
-                date: Timestamp.fromDate(data.date),
-            });
-
-            await batch.commit();
-            toast({
-                title: "Sucesso!",
-                description: "Seu progresso foi atualizado.",
-            });
-
-        } else {
-            // Logic for adding a new entry
-            const newDateString = format(data.date, "yyyy-MM-dd");
-            const newProgressDocRef = doc(userProgressRef, newDateString);
-            await setDoc(newProgressDocRef, {
-                weight: data.weight,
-                bodyFat: data.bodyFat || null,
-                date: Timestamp.fromDate(data.date),
-            }, { merge: true });
-            toast({
-                title: "Sucesso!",
-                description: "Seu progresso foi salvo.",
-            });
-        }
-        
-        setEditingEntryId(null);
+        toast({
+            title: "Sucesso!",
+            description: "Seu progresso foi salvo.",
+        });
         progressForm.reset({ date: new Date(), weight: undefined, bodyFat: undefined });
 
     } catch (error: any) {
@@ -356,21 +302,6 @@ export default function ProfilePage() {
         setIsProgressLoading(false);
     }
 };
-
-
-  const handleEditProgress = (entry: ProgressEntry) => {
-    setEditingEntryId(entry.id);
-    progressForm.reset({
-        date: entry.date,
-        weight: entry.weight,
-        bodyFat: entry.bodyFat || undefined,
-    });
-  }
-  
-  const handleClearForm = () => {
-    setEditingEntryId(null);
-    progressForm.reset({ date: new Date(), weight: undefined, bodyFat: undefined });
-  }
 
   const handleDeleteProgress = async (entryId: string) => {
     if (!user) return;
@@ -386,98 +317,60 @@ export default function ProfilePage() {
   const lastWeight = progressHistory.length > 0 ? progressHistory[progressHistory.length - 1].weight : null;
   const currentBmi = height && lastWeight ? (lastWeight / (height * height)).toFixed(2) : null;
 
-  const chartData = {
-    weight: progressHistory.map(entry => ({
-        date: format(entry.date, "PPP", { locale: ptBR }),
-        label: format(entry.date, "dd/MM"),
-        value: entry.weight,
-    })),
-    imc: height ? progressHistory.map(entry => ({
-      date: format(entry.date, "PPP", { locale: ptBR }),
-      label: format(entry.date, "dd/MM"),
-      value: parseFloat((entry.weight / (height * height)).toFixed(2)),
-    })) : [],
-    leanMass: progressHistory
-      .filter(entry => entry.bodyFat && entry.bodyFat > 0)
-      .map(entry => ({
-          date: format(entry.date, "PPP", { locale: ptBR }),
-          label: format(entry.date, "dd/MM"),
-          value: parseFloat((entry.weight * (1 - entry.bodyFat! / 100)).toFixed(1)),
-      })),
-    bodyFat: progressHistory
-      .filter(entry => entry.bodyFat && entry.bodyFat > 0)
-      .map(entry => ({
-          date: format(entry.date, "PPP", { locale: ptBR }),
-          label: format(entry.date, "dd/MM"),
-          value: entry.bodyFat,
-      })),
-  };
-  
-  const getChartDomain = (data: number[]) => {
-      if (data.length === 0) return [0, 100];
-      const min = Math.min(...data);
-      const max = Math.max(...data);
-      if (min === max) return [min - 5, max + 5];
-      const padding = (max - min) * 0.15;
-      return [Math.max(0, min - padding), max + padding];
+  const chartDataWeight = progressHistory.map(entry => ({ date: format(entry.date, "PPP", { locale: ptBR }), label: format(entry.date, "dd/MM"), value: entry.weight }));
+  const chartDataBmi = height ? progressHistory.map(entry => ({ date: format(entry.date, "PPP", { locale: ptBR }), label: format(entry.date, "dd/MM"), value: parseFloat((entry.weight / (height * height)).toFixed(2)) })) : [];
+  const chartDataLeanMass = progressHistory.filter(entry => entry.bodyFat && entry.bodyFat > 0).map(entry => ({ date: format(entry.date, "PPP", { locale: ptBR }), label: format(entry.date, "dd/MM"), value: parseFloat((entry.weight * (1 - entry.bodyFat! / 100)).toFixed(1)) }));
+  const chartDataBodyFat = progressHistory.filter(entry => entry.bodyFat && entry.bodyFat > 0).map(entry => ({ date: format(entry.date, "PPP", { locale: ptBR }), label: format(entry.date, "dd/MM"), value: entry.bodyFat }));
+
+  const getChartDomain = (data: { value?: number | null }[]) => {
+    const values = data.map(d => d.value).filter((v): v is number => v !== null && v !== undefined);
+    if (values.length === 0) return [0, 100];
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    if (min === max) return [min > 5 ? min - 5 : 0, max + 5];
+    const padding = (max - min) * 0.15;
+    return [Math.max(0, min - padding), max + padding];
   };
 
-  const activeChartData = chartData[activeChart];
-  const yDomain = getChartDomain(activeChartData.map(d => d.value!));
-  const ActiveIcon = chartConfig[activeChart].icon;
+  const yDomainWeight = getChartDomain(chartDataWeight);
+  const yDomainBmi = getChartDomain(chartDataBmi);
+  const yDomainLeanMass = getChartDomain(chartDataLeanMass);
+  const yDomainBodyFat = getChartDomain(chartDataBodyFat);
 
-  const ColoredDot = (props: any) => {
+  const BmiDot = (props: any) => {
     const { cx, cy, payload } = props;
-    if (activeChart !== 'imc' || !payload?.value) return <Dot cx={cx} cy={cy} r={3} fill={`var(--color-${activeChart})`} stroke={'var(--color-background)'} strokeWidth={1} />;
+    if (!payload?.value) return <Dot cx={cx} cy={cy} r={3} fill="hsl(var(--chart-1))" stroke="var(--background)" strokeWidth={1} />;
     const color = getBmiCategoryColor(payload.value);
     return <Dot cx={cx} cy={cy} r={4} fill={color} stroke="#fff" strokeWidth={1} />;
   };
 
-  const renderChart = () => {
-    if (activeChart === 'imc' && !height) {
-        return (
-            <div className="flex items-center justify-center h-[400px] bg-muted/50 rounded-lg text-center p-4">
-                <p className="text-muted-foreground">Informe sua altura para ver a evolução do IMC.</p>
-            </div>
-        );
-    }
-    if ((activeChart === 'leanMass' || activeChart === 'bodyFat') && chartData[activeChart].length === 0) {
-         return (
-            <div className="flex items-center justify-center h-[400px] bg-muted/50 rounded-lg text-center p-4">
-                <p className="text-muted-foreground">Registre seu peso e sua gordura corporal para ver esta evolução.</p>
-            </div>
-        );
-    }
-    if (activeChartData.length === 0) {
-        return (
-            <div className="flex items-center justify-center h-[400px] bg-muted/50 rounded-lg text-center p-4">
-                <p className="text-muted-foreground">Registre seu progresso para começar a ver sua evolução.</p>
-            </div>
-        );
-    }
+  const renderChart = (data: any[], yDomain: number[], color: string, chartType: string, customDot?: React.ReactElement) => {
+      const chartConfig = {[chartType]: {label: chartType, color}};
+      if (chartType === 'imc' && !height) return <div className="flex items-center justify-center h-[250px] bg-muted/50 rounded-lg text-center p-4"><p className="text-muted-foreground">Informe sua altura para ver a evolução do IMC.</p></div>;
+      if ((chartType === 'leanMass' || chartType === 'bodyFat') && data.length === 0) return <div className="flex items-center justify-center h-[250px] bg-muted/50 rounded-lg text-center p-4"><p className="text-muted-foreground">Registre gordura corporal para ver esta evolução.</p></div>;
+      if (data.length === 0) return <div className="flex items-center justify-center h-[250px] bg-muted/50 rounded-lg text-center p-4"><p className="text-muted-foreground">Registre seu progresso para ver a evolução.</p></div>;
 
-    return (
-        <ChartContainer config={chartConfig} className="h-[400px] w-full">
-            <LineChart data={activeChartData} margin={{ top: 20, right: 20, left: -20, bottom: 20 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
-                <YAxis type="number" domain={yDomain} tickLine={false} axisLine={false} tickMargin={8} width={0} fontSize={12} unit={activeChart === 'bodyFat' ? '%' : 'kg'} />
-                <Tooltip cursor={true} content={<CustomTooltipContent />} />
-                
-                {activeChart === 'imc' && (
-                    <>
-                        <ReferenceArea y1={yDomain[0]} y2={18.5} fill="hsl(210 90% 60% / 0.1)" stroke="hsl(210 90% 60% / 0.2)" strokeDasharray="3 3" />
-                        <ReferenceArea y1={18.5} y2={24.9} fill="hsl(120 60% 47% / 0.1)" stroke="hsl(120 60% 47% / 0.2)" strokeDasharray="3 3" />
-                        <ReferenceArea y1={25} y2={29.9} fill="hsl(48 95% 50% / 0.1)" stroke="hsl(48 95% 50% / 0.2)" strokeDasharray="3 3" />
-                        <ReferenceArea y1={30} y2={yDomain[1]} fill="hsl(var(--destructive) / 0.1)" stroke="hsl(var(--destructive) / 0.2)" strokeDasharray="3 3" />
-                    </>
-                )}
-
-                <Line dataKey="value" type="natural" stroke={`var(--color-${activeChart})`} strokeWidth={2} dot={<ColoredDot/>} activeDot={{ r: 6 }} name={chartConfig[activeChart].label}/>
-            </LineChart>
-        </ChartContainer>
-    )
-  }
+      return (
+          <ChartContainer config={chartConfig} className="h-[250px] w-full">
+              <LineChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 20 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
+                  <YAxis type="number" domain={yDomain} hide={true} />
+                  <Tooltip cursor={true} content={<CustomTooltipContent chartType={chartType} />} />
+                  
+                  {chartType === 'imc' && (
+                      <>
+                          <ReferenceArea y1={yDomain[0]} y2={18.5} fill="hsl(210 90% 60% / 0.1)" stroke="hsl(210 90% 60% / 0.2)" strokeDasharray="3 3" />
+                          <ReferenceArea y1={18.5} y2={24.9} fill="hsl(120 60% 47% / 0.1)" stroke="hsl(120 60% 47% / 0.2)" strokeDasharray="3 3" />
+                          <ReferenceArea y1={25} y2={29.9} fill="hsl(48 95% 50% / 0.1)" stroke="hsl(48 95% 50% / 0.2)" strokeDasharray="3 3" />
+                          <ReferenceArea y1={30} y2={yDomain[1]} fill="hsl(var(--destructive) / 0.1)" stroke="hsl(var(--destructive) / 0.2)" strokeDasharray="3 3" />
+                      </>
+                  )}
+                  <Line dataKey="value" type="natural" stroke={color} strokeWidth={2} dot={customDot || <Dot r={3} />} activeDot={{ r: 6 }} name={chartType} />
+              </LineChart>
+          </ChartContainer>
+      );
+  };
 
   if (!user) {
     return (
@@ -542,9 +435,9 @@ export default function ProfilePage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Informações de Saúde</CardTitle>
-                        <CardDescription>Gerencie suas informações e acompanhe sua evolução.</CardDescription>
+                        <CardDescription>Gerencie suas informações básicas de saúde.</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-8">
+                    <CardContent>
                         <form onSubmit={healthForm.handleSubmit(handleHealthUpdate)} className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                                 <div className="space-y-2">
@@ -571,46 +464,52 @@ export default function ProfilePage() {
                     </CardContent>
                 </Card>
                 
-                <Card>
-                    <CardHeader>
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                            <div className="flex items-center gap-2">
-                                <LineChartIcon className="h-5 w-5" />
-                                <CardTitle className="text-lg">Resumo da Evolução</CardTitle>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2"><Weight className="h-5 w-5 text-primary" /> Evolução do Peso</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {renderChart(chartDataWeight, yDomainWeight, "hsl(var(--chart-1))", "weight")}
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2"><AreaChart className="h-5 w-5 text-primary" /> Evolução do IMC</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {renderChart(chartDataBmi, yDomainBmi, "hsl(var(--chart-2))", "imc", <BmiDot />)}
+                            <div className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(210,90%,60%)]"></span>Abaixo</div>
+                                <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(120,60%,47%)]"></span>Ideal</div>
+                                <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(48,95%,50%)]"></span>Sobrepeso</div>
+                                <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(var(--destructive))]"></span>Obesidade</div>
                             </div>
-                            <Select value={activeChart} onValueChange={(value) => setActiveChart(value as ChartType)}>
-                                <SelectTrigger className="w-full sm:w-[240px]">
-                                    <div className="flex items-center gap-2">
-                                        <ActiveIcon className="h-4 w-4" />
-                                        <SelectValue placeholder="Selecione uma métrica" />
-                                    </div>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="weight"><Weight className="mr-2 h-4 w-4" /> Evolução do Peso</SelectItem>
-                                    <SelectItem value="imc"><AreaChart className="mr-2 h-4 w-4" /> Evolução do IMC</SelectItem>
-                                    <SelectItem value="leanMass"><BarChart className="mr-2 h-4 w-4" /> Evolução da Massa Magra</SelectItem>
-                                    <SelectItem value="bodyFat"><Percent className="mr-2 h-4 w-4" /> Evolução da Gordura Corporal</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        {renderChart()}
-                        {activeChart === 'imc' && (
-                            <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-                                <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(210,90%,60%)]"></span>Abaixo do Peso (&lt;18.5)</div>
-                                <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(120,60%,47%)]"></span>Peso Ideal (18.5-24.9)</div>
-                                <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(48,95%,50%)]"></span>Sobrepeso (25-29.9)</div>
-                                <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(var(--destructive))]"></span>Obesidade (&ge;30)</div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2"><BarChart className="h-5 w-5 text-primary" /> Massa Magra (kg)</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {renderChart(chartDataLeanMass, yDomainLeanMass, "hsl(var(--chart-4))", "leanMass")}
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2"><Percent className="h-5 w-5 text-primary" /> Gordura Corporal (%)</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {renderChart(chartDataBodyFat, yDomainBodyFat, "hsl(var(--chart-5))", "bodyFat")}
+                        </CardContent>
+                    </Card>
+                </div>
+
 
                 <Card>
                     <CardHeader>
                         <CardTitle>Histórico de Registros</CardTitle>
-                        <CardDescription>Adicione, edite ou exclua seus registros de progresso.</CardDescription>
+                        <CardDescription>Adicione ou exclua seus registros de progresso.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Form {...progressForm}>
@@ -652,17 +551,10 @@ export default function ProfilePage() {
                                         <FormMessage />
                                     </FormItem>
                                 )}/>
-                                <div className="flex gap-2">
-                                     <Button type="submit" className="w-full" disabled={isProgressLoading}>
-                                        {isProgressLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        {editingEntryId ? 'Salvar Alterações' : 'Salvar'}
-                                    </Button>
-                                    {editingEntryId && (
-                                    <Button type="button" variant="outline" onClick={handleClearForm}>
-                                        Limpar
-                                    </Button>
-                                    )}
-                                </div>
+                                <Button type="submit" className="w-full" disabled={isProgressLoading}>
+                                    {isProgressLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Salvar
+                                </Button>
                             </form>
                         </Form>
                         <ScrollArea className="h-[300px] border rounded-md">
@@ -682,10 +574,6 @@ export default function ProfilePage() {
                                         <TableCell className="text-right">{entry.weight.toFixed(1)} kg</TableCell>
                                         <TableCell className="text-right">{entry.bodyFat ? `${entry.bodyFat.toFixed(1)}%` : "N/A"}</TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditProgress(entry)}>
-                                                <Pencil className="h-4 w-4" />
-                                                <span className="sr-only">Editar</span>
-                                            </Button>
                                             <Dialog>
                                                 <DialogTrigger asChild>
                                                     <Button variant="ghost" size="icon" className="h-8 w-8">
