@@ -91,14 +91,24 @@ export default function LoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const idToken = await userCredential.user.getIdToken();
-      await fetch("/api/auth/session", {
+      const response = await fetch("/api/auth/session", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
         },
       });
-      router.push("/");
+
+      if (response.ok) {
+        toast({
+          title: "Login bem-sucedido!",
+          description: "Bem-vindo(a) de volta.",
+        });
+        router.push("/");
+      } else {
+         throw new Error("Falha ao criar sessão.");
+      }
+
     } catch (error: any) {
       toast({
         title: "Erro de Autenticação",
@@ -118,14 +128,24 @@ export default function LoginPage() {
       const result = await signInWithPopup(auth, provider);
       await saveUserToFirestore(result.user);
       const idToken = await result.user.getIdToken();
-      await fetch("/api/auth/session", {
+      const response = await fetch("/api/auth/session", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
         },
       });
-      router.push("/");
+
+      if (response.ok) {
+        toast({
+          title: "Login com Google bem-sucedido!",
+          description: "Bem-vindo(a) de volta.",
+        });
+        router.push("/");
+      } else {
+        throw new Error("Falha ao criar sessão com o Google.");
+      }
+
     } catch (error: any) {
       toast({
         title: "Erro com Google Sign-In",
@@ -236,5 +256,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    
