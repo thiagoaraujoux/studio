@@ -159,7 +159,7 @@ export default function ProfilePage() {
   const [height, setHeight] = useState<number | null>(null);
   const [activeChart, setActiveChart] = useState<ChartType>("weight");
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
-  const [router] = useRouter();
+  const router = useRouter();
   const { toast } = useToast();
   const auth = getAuth(app);
 
@@ -746,5 +746,7 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    
 
     
