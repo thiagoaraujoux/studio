@@ -66,22 +66,45 @@ export function WorkoutSuggester() {
 
   // Basic markdown to HTML renderer
   const renderMarkdown = (text: string) => {
+    let listOpen = false;
     const html = text
       .split('\n')
       .map(line => {
         // Headings
-        if (line.startsWith('# ')) return `<h3>${line.substring(2)}</h3>`;
+        if (line.startsWith('### ')) return `<h5>${line.substring(4)}</h5>`;
         if (line.startsWith('## ')) return `<h4>${line.substring(3)}</h4>`;
+        if (line.startsWith('# ')) return `<h3>${line.substring(2)}</h3>`;
+        
         // Bold
         line = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        
         // List items
-        if (line.startsWith('* ')) return `<li>${line.substring(2)}</li>`;
-        if (line.startsWith('- ')) return `<li>${line.substring(2)}</li>`;
+        if (line.startsWith('* ') || line.startsWith('- ')) {
+          let listItem = `<li>${line.substring(2)}</li>`;
+          if (!listOpen) {
+            listItem = '<ul>' + listItem;
+            listOpen = true;
+          }
+          return listItem;
+        }
+
+        // Close list if line is not a list item
+        let closingTag = '';
+        if (listOpen && !line.startsWith('* ') && !line.startsWith('- ')) {
+            closingTag = '</ul>';
+            listOpen = false;
+        }
+
         // Paragraphs
-        return line ? `<p>${line}</p>` : '<br />';
+        const paragraph = line ? `<p>${line}</p>` : '';
+        return closingTag + paragraph;
       })
       .join('');
-    return <div dangerouslySetInnerHTML={{ __html: html }} />;
+
+    // Close any open list at the end
+    const finalHtml = listOpen ? html + '</ul>' : html;
+    
+    return <div className="prose prose-sm max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: finalHtml }} />;
   };
 
   return (
@@ -137,10 +160,8 @@ export function WorkoutSuggester() {
             <CardTitle>Seu Treino Sugerido</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="prose prose-sm max-w-none rounded-lg border bg-muted/30 p-4">
-              <div className="whitespace-pre-wrap font-body text-sm text-foreground">
-                {renderMarkdown(workoutPlan)}
-              </div>
+            <div className="rounded-lg border bg-muted/30 p-4">
+              {renderMarkdown(workoutPlan)}
             </div>
           </CardContent>
         </>
