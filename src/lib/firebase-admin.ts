@@ -6,9 +6,9 @@ const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
 if (!admin.apps.length) {
   admin.initializeApp({
+    // A inicialização padrão pode não pegar o projeto correto em alguns ambientes.
+    // Fornecer a credencial e o ID do projeto explicitamente garante a conexão correta.
     credential: admin.credential.applicationDefault(),
-    // Especifica explicitamente qual projeto do Firebase o SDK Admin deve usar.
-    // Isso resolve o erro "incorrect aud claim".
     projectId: projectId,
   });
 }
