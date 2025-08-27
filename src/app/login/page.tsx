@@ -73,7 +73,7 @@ export default function LoginPage() {
       title: `Bem-vindo(a)!`,
       description: "Login realizado com sucesso.",
     });
-    router.push("/");
+    router.push("/dashboard");
   };
   
   const handleAuthError = (error: any) => {

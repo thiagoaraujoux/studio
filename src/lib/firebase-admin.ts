@@ -8,6 +8,7 @@ const projectId = "vitalize-companion";
 
 if (!admin.apps.length) {
   try {
+    // Inicializa o app com o projectId explícito para garantir a correspondência da audiência.
     admin.initializeApp({
       projectId: projectId,
     });
