@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Loader2, History, Trash2, Pencil, AreaChart, User, LineChartIcon } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, History, Trash2, Pencil, AreaChart, User, LineChartIcon, Weight, BarChart } from "lucide-react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {
   getFirestore,
@@ -85,6 +85,10 @@ const chartConfig = {
   imc: {
     label: "IMC",
     color: "hsl(var(--primary))",
+  },
+  leanMass: {
+    label: "Massa Magra (kg)",
+    color: "hsl(var(--chart-2))",
   },
 } satisfies ChartConfig;
 
@@ -200,6 +204,14 @@ export function ProgressTracker() {
     label: format(entry.date, "dd/MM"),
     imc: parseFloat((entry.weight / (height * height)).toFixed(2)),
   })) : [];
+
+  const leanMassChartData = progressHistory
+    .filter(entry => entry.bodyFat && entry.bodyFat > 0)
+    .map(entry => ({
+        date: format(entry.date, "PPP", { locale: ptBR }),
+        label: format(entry.date, "dd/MM"),
+        leanMass: parseFloat((entry.weight * (1 - entry.bodyFat! / 100)).toFixed(1)),
+    }));
   
   const yDomainBmi = bmiChartData.length > 0
     ? [Math.floor(Math.min(...bmiChartData.map(d => d.imc), 15) / 2) * 2, Math.ceil(Math.max(...bmiChartData.map(d => d.imc), 32) / 2) * 2]
@@ -208,6 +220,10 @@ export function ProgressTracker() {
   const yDomainWeight = weightChartData.length > 0
     ? [Math.floor(Math.min(...weightChartData.map(d => d.weight)) / 5) * 5 - 5, Math.ceil(Math.max(...weightChartData.map(d => d.weight)) / 5) * 5 + 5]
     : [50, 100];
+    
+  const yDomainLeanMass = leanMassChartData.length > 0
+    ? [Math.floor(Math.min(...leanMassChartData.map(d => d.leanMass)) / 5) * 5 - 5, Math.ceil(Math.max(...leanMassChartData.map(d => d.leanMass)) / 5) * 5 + 5]
+    : [40, 80];
 
 
   async function onSubmit(data: ProgressFormValues) {
@@ -447,7 +463,7 @@ export function ProgressTracker() {
         <div className="mt-6 space-y-6">
             <div>
               <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                <LineChartIcon className="h-5 w-5" />
+                <Weight className="h-5 w-5" />
                 Gráfico de Evolução do Peso
               </h3>
                {weightChartData.length > 0 ? (
@@ -511,8 +527,31 @@ export function ProgressTracker() {
                 </div>
               )}
             </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                <BarChart className="h-5 w-5" />
+                Gráfico de Evolução da Massa Magra
+              </h3>
+               {leanMassChartData.length > 0 ? (
+                    <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                        <LineChart data={leanMassChartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
+                            <YAxis tickLine={false} axisLine={false} tickMargin={8} domain={yDomainLeanMass} width={40} fontSize={12} unit="kg" />
+                            <Tooltip cursor={true} content={<ChartTooltipContent indicator="dot" labelKey="date" />} />
+                            <Line dataKey="leanMass" type="natural" stroke="var(--color-leanMass)" strokeWidth={2} dot={{fill: "var(--color-leanMass)"}} activeDot={{r: 6}} />
+                        </LineChart>
+                    </ChartContainer>
+                ) : (
+                    <div className="flex items-center justify-center h-[200px] bg-muted/50 rounded-lg text-center p-4">
+                        <p className="text-muted-foreground">Registre seu peso e sua gordura corporal para ver a evolução da sua massa magra.</p>
+                    </div>
+                )}
+            </div>
         </div>
       </CardContent>
     </Card>
   );
 }
+
+    
