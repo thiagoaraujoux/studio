@@ -19,6 +19,7 @@ import { app } from "@/lib/firebase";
 export function Header() {
   const router = useRouter();
   const auth = getAuth(app);
+  const currentUser = auth.currentUser;
 
   const handleSignOut = async () => {
     try {
@@ -30,6 +31,9 @@ export function Header() {
       console.error("Error signing out: ", error);
     }
   };
+
+  const displayName = currentUser?.displayName || currentUser?.email?.split('@')[0] || "Usuário";
+
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-card">
@@ -44,17 +48,17 @@ export function Header() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-9 w-9">
-                <AvatarImage src={auth.currentUser?.photoURL || "https://picsum.photos/100"} alt="Avatar do usuário" data-ai-hint="person" />
-                <AvatarFallback>{auth.currentUser?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                <AvatarImage src={currentUser?.photoURL || "https://picsum.photos/100"} alt="Avatar do usuário" data-ai-hint="person" />
+                <AvatarFallback>{currentUser?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{auth.currentUser?.displayName || 'Usuário'}</p>
+                <p className="text-sm font-medium leading-none">{displayName}</p>
                 <p className="text-xs leading-none text-muted-foreground">
-                  {auth.currentUser?.email}
+                  {currentUser?.email}
                 </p>
               </div>
             </DropdownMenuLabel>

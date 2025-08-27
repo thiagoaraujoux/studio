@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,6 +12,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { app } from "@/lib/firebase";
+import { getAuth } from "firebase/auth";
+import { useEffect, useState } from "react";
+import type { User as FirebaseUser } from "firebase/auth";
 
 const posts = [
   {
@@ -37,6 +42,18 @@ const posts = [
 ];
 
 export function CommunityFeed() {
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const auth = getAuth(app);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setUser(user);
+    });
+    return () => unsubscribe();
+  }, [auth]);
+
+  const displayName = user?.displayName || user?.email?.split('@')[0] || "Usuário";
+
   return (
     <Card className="transition-all hover:shadow-lg">
       <CardHeader>
@@ -47,7 +64,7 @@ export function CommunityFeed() {
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
-          <Textarea placeholder="O que você está pensando, Alex?" className="mb-2" />
+          <Textarea placeholder={`O que você está pensando, ${displayName}?`} className="mb-2" />
           <Button>Publicar no Feed</Button>
         </div>
         <div className="space-y-4">
