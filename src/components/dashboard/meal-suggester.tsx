@@ -154,14 +154,14 @@ export function MealSuggester() {
           </CardFooter>
         </form>
       </Form>
-      {workoutPlan && (
+      {mealPlan && (
         <>
           <CardHeader>
             <CardTitle>Sua Refeição Sugerida</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="rounded-lg border bg-muted/30 p-4">
-              {renderMarkdown(workoutPlan)}
+              {renderMarkdown(mealPlan)}
             </div>
           </CardContent>
         </>
