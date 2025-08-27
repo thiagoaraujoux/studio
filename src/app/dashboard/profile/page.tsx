@@ -9,7 +9,7 @@ import { z } from "zod";
 import { getAuth, updateProfile, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { doc, setDoc, getDoc, collection, query, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, Dot } from "recharts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -67,6 +67,14 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
+const getBmiCategoryColor = (imc: number | null) => {
+    if (imc === null) return 'hsl(var(--muted-foreground))';
+    if (imc < 18.5) return 'hsl(210 90% 70%)';
+    if (imc < 25) return 'hsl(120 60% 47%)';
+    if (imc < 30) return 'hsl(48 95% 50%)';
+    return 'hsl(var(--destructive))';
+};
+
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
@@ -122,7 +130,7 @@ export default function ProfilePage() {
       }
     });
     return () => unsubscribe();
-  }, [auth, router, profileForm, healthForm]);
+  }, [auth, router, profileForm, healthForm, db]);
 
   const handleProfileUpdate: SubmitHandler<ProfileFormValues> = async (data) => {
     if (!user) return;
@@ -216,9 +224,25 @@ export default function ProfilePage() {
     imc: parseFloat((entry.weight / (height * height)).toFixed(2)),
   })) : [];
   
-  const yDomain = bmiChartData.length > 0
-    ? [Math.min(...bmiChartData.map(d => d.imc), 15) - 2, Math.max(...bmiChartData.map(d => d.imc), 32) + 2]
-    : [15, 35];
+  const getChartDomain = (data: number[]) => {
+      if (data.length < 2) {
+          const singleValue = data[0] || 20; // Default center
+          return [singleValue - 10, singleValue + 10];
+      }
+      const min = Math.min(...data);
+      const max = Math.max(...data);
+      const padding = (max - min) * 0.15;
+      return [Math.max(0, min - padding), max + padding];
+  };
+
+  const yDomain = getChartDomain(bmiChartData.map(d => d.imc));
+
+  const ColoredDot = (props: any) => {
+    const { cx, cy, payload } = props;
+    if (!payload?.imc) return null;
+    const color = getBmiCategoryColor(payload.imc);
+    return <Dot cx={cx} cy={cy} r={4} fill={color} stroke="#fff" strokeWidth={1} />;
+  };
 
 
   if (!user) {
@@ -313,7 +337,7 @@ export default function ProfilePage() {
                                     <LineChart data={bmiChartData} margin={{ top: 20, right: 40, left: 0, bottom: 20 }}>
                                         <CartesianGrid vertical={false} />
                                         <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
-                                        <YAxis tickLine={false} axisLine={false} tickMargin={8} domain={yDomain} width={30} fontSize={12}/>
+                                        <YAxis type="number" domain={yDomain} tickLine={false} axisLine={false} tickMargin={8} width={30} fontSize={12}/>
                                         <Tooltip cursor={true} content={<ChartTooltipContent indicator="dot" labelKey="date" />} />
                                         
                                         <ReferenceArea y1={0} y2={18.5} fill="hsl(210 90% 70% / 0.1)" stroke="hsl(210 90% 70% / 0.2)" strokeDasharray="3 3" />
@@ -321,7 +345,7 @@ export default function ProfilePage() {
                                         <ReferenceArea y1={25} y2={29.9} fill="hsl(48 95% 50% / 0.1)" stroke="hsl(48 95% 50% / 0.2)" strokeDasharray="3 3" />
                                         <ReferenceArea y1={30} y2={yDomain[1]} fill="hsl(var(--destructive) / 0.1)" stroke="hsl(var(--destructive) / 0.2)" strokeDasharray="3 3" />
 
-                                        <Line dataKey="imc" type="natural" stroke="var(--color-imc)" strokeWidth={2} dot={{ fill: "var(--color-imc)" }} activeDot={{ r: 6 }} />
+                                        <Line dataKey="imc" type="natural" stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} dot={<ColoredDot />} activeDot={{ r: 6 }} />
                                     </LineChart>
                                     </ChartContainer>
                                 ) : (
@@ -385,5 +409,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    

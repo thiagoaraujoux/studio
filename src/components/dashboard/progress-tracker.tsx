@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Loader2, History, Trash2, Pencil, AreaChart, User, LineChartIcon, Weight, BarChart, Percent } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, History, Trash2, Pencil, AreaChart, User, Weight, BarChart, Percent } from "lucide-react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {
   getFirestore,
@@ -80,7 +80,7 @@ type ProgressEntry = {
 const chartConfig = {
   weight: {
     label: "Peso (kg)",
-    color: "hsl(var(--muted-foreground))",
+    color: "hsl(var(--chart-1))",
   },
   imc: {
     label: "IMC",
@@ -102,8 +102,8 @@ const progressFormSchema = z.object({
     z.number().positive("O peso deve ser um número positivo.")
   ),
   bodyFat: z.preprocess(
-    (val) => (String(val).trim() === "" ? null : parseFloat(String(val))),
-    z.number().positive("A gordura corporal deve ser um número positivo.").nullable().optional()
+    (val) => (String(val).trim() === "" ? undefined : parseFloat(String(val))),
+    z.number().positive("A gordura corporal deve ser um número positivo.").optional()
   ),
   date: z.date({
     required_error: "A data é obrigatória.",
@@ -114,10 +114,10 @@ type ProgressFormValues = z.infer<typeof progressFormSchema>;
 
 const getBmiCategoryColor = (imc: number | null) => {
     if (imc === null) return 'hsl(var(--muted-foreground))';
-    if (imc < 18.5) return 'hsl(210 90% 55%)'; // Azul
-    if (imc < 25) return 'hsl(120 60% 47%)'; // Verde
-    if (imc < 30) return 'hsl(48 95% 50%)'; // Amarelo
-    return 'hsl(var(--destructive))'; // Vermelho
+    if (imc < 18.5) return 'hsl(210 90% 70%)';
+    if (imc < 25) return 'hsl(120 60% 47%)';
+    if (imc < 30) return 'hsl(48 95% 50%)';
+    return 'hsl(var(--destructive))';
 };
 
 export function ProgressTracker() {
@@ -133,7 +133,7 @@ export function ProgressTracker() {
     resolver: zodResolver(progressFormSchema),
     defaultValues: {
       date: new Date(),
-      weight: 0,
+      weight: undefined,
       bodyFat: undefined
     },
   });
@@ -173,7 +173,7 @@ export function ProgressTracker() {
           } else if (data.length === 0) {
             form.reset({
                 date: new Date(),
-                weight: 0,
+                weight: undefined,
                 bodyFat: undefined
             });
           }
@@ -225,19 +225,17 @@ export function ProgressTracker() {
         bodyFat: entry.bodyFat,
     }));
   
-  const getChartDomain = (data: number[], paddingFactor = 0.05) => {
+  const getChartDomain = (data: number[]) => {
       if (data.length === 0) return [0, 100];
+      if (data.length === 1) return [data[0] - 5, data[0] + 5];
+
       const min = Math.min(...data);
       const max = Math.max(...data);
       const range = max - min;
-      // If all values are the same, provide a small range around the value.
-      if (range === 0) {
-          const padding = min * paddingFactor;
-          return [min - padding, max + padding];
-      }
-      const paddedMin = Math.max(0, min - range * paddingFactor);
-      const paddedMax = max + range * paddingFactor;
-      return [paddedMin, paddedMax];
+      if (range === 0) return [min - 5, max + 5];
+      
+      const padding = range * 0.1;
+      return [Math.max(0, min - padding), max + padding];
   };
 
   const yDomainWeight = getChartDomain(weightChartData.map(d => d.weight));
@@ -489,7 +487,7 @@ export function ProgressTracker() {
               </h3>
                {weightChartData.length > 0 ? (
                     <ChartContainer config={chartConfig} className="h-[200px] w-full">
-                        <LineChart data={weightChartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
+                        <LineChart data={weightChartData} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
                             <CartesianGrid vertical={false} />
                             <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
                             <YAxis type="number" domain={yDomainWeight} tickLine={false} axisLine={false} tickMargin={8} width={40} fontSize={12} unit="kg" />
@@ -521,13 +519,13 @@ export function ProgressTracker() {
               ) : bmiChartData.length > 0 ? (
                 <>
                 <ChartContainer config={chartConfig} className="h-[200px] w-full">
-                  <LineChart data={bmiChartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
+                  <LineChart data={bmiChartData} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
                     <CartesianGrid vertical={false} />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
                     <YAxis type="number" domain={yDomainBmi} tickLine={false} axisLine={false} tickMargin={8} width={30} fontSize={12} />
                     <Tooltip cursor={true} content={<ChartTooltipContent indicator="dot" labelKey="date" />} />
                     
-                    <ReferenceArea y1={yDomainBmi[0]} y2={18.5} fill="hsl(210 90% 55% / 0.1)" stroke="hsl(210 90% 55% / 0.2)" strokeDasharray="3 3" />
+                    <ReferenceArea y1={yDomainBmi[0]} y2={18.5} fill="hsl(210 90% 70% / 0.1)" stroke="hsl(210 90% 70% / 0.2)" strokeDasharray="3 3" />
                     <ReferenceArea y1={18.5} y2={24.9} fill="hsl(120 60% 47% / 0.1)" stroke="hsl(120 60% 47% / 0.2)" strokeDasharray="3 3" />
                     <ReferenceArea y1={25} y2={29.9} fill="hsl(48 95% 50% / 0.1)" stroke="hsl(48 95% 50% / 0.2)" strokeDasharray="3 3" />
                     <ReferenceArea y1={30} y2={yDomainBmi[1] > 30 ? yDomainBmi[1] : 35} fill="hsl(var(--destructive) / 0.1)" stroke="hsl(var(--destructive) / 0.2)" strokeDasharray="3 3" />
@@ -536,7 +534,7 @@ export function ProgressTracker() {
                   </LineChart>
                 </ChartContainer>
                 <div className="mt-4 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(210,90%,55%)]"></span>Abaixo</div>
+                    <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(210,90%,70%)]"></span>Abaixo</div>
                     <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(120,60%,47%)]"></span>Ideal</div>
                     <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(48,95%,50%)]"></span>Sobrepeso</div>
                     <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(var(--destructive))]"></span>Obesidade</div>
@@ -555,7 +553,7 @@ export function ProgressTracker() {
               </h3>
                {leanMassChartData.length > 0 ? (
                     <ChartContainer config={chartConfig} className="h-[200px] w-full">
-                        <LineChart data={leanMassChartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
+                        <LineChart data={leanMassChartData} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
                             <CartesianGrid vertical={false} />
                             <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
                             <YAxis type="number" domain={yDomainLeanMass} tickLine={false} axisLine={false} tickMargin={8} width={40} fontSize={12} unit="kg" />
@@ -576,7 +574,7 @@ export function ProgressTracker() {
               </h3>
                {bodyFatChartData.length > 0 ? (
                     <ChartContainer config={chartConfig} className="h-[200px] w-full">
-                        <LineChart data={bodyFatChartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
+                        <LineChart data={bodyFatChartData} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
                             <CartesianGrid vertical={false} />
                             <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
                             <YAxis type="number" domain={yDomainBodyFat} tickLine={false} axisLine={false} tickMargin={8} width={40} fontSize={12} unit="%" />
@@ -595,9 +593,3 @@ export function ProgressTracker() {
     </Card>
   );
 }
-
-    
-
-    
-
-    
