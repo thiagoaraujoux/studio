@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { HeartPulse, UserCheck } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const quizQuestions = [
   {
@@ -89,17 +91,30 @@ const results = {
 };
 
 export default function QuizPage() {
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [result, setResult] = useState<{ title: string; message: string } | null>(null);
+  const [isExiting, setIsExiting] = useState(false);
   const router = useRouter();
 
   const handleAnswerChange = (questionId: string, value: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+    const newAnswers = { ...answers, [questionId]: value };
+    setAnswers(newAnswers);
+    
+    setIsExiting(true);
+    setTimeout(() => {
+        if (currentQuestionIndex < quizQuestions.length - 1) {
+            setCurrentQuestionIndex(currentQuestionIndex + 1);
+        } else {
+            calculateResult(newAnswers);
+        }
+        setIsExiting(false);
+    }, 500);
   };
-
-  const calculateResult = () => {
+  
+  const calculateResult = (finalAnswers: Record<string, string>) => {
     const counts: Record<string, number> = { A: 0, B: 0, C: 0 };
-    Object.values(answers).forEach((answer) => {
+    Object.values(finalAnswers).forEach((answer) => {
       counts[answer]++;
     });
 
@@ -113,12 +128,13 @@ export default function QuizPage() {
 
     setResult(results[majority as keyof typeof results]);
   };
-  
-  const allQuestionsAnswered = Object.keys(answers).length === quizQuestions.length;
+
+  const progress = ((currentQuestionIndex + 1) / quizQuestions.length) * 100;
+  const currentQuestion = quizQuestions[currentQuestionIndex];
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 sm:p-6 lg:p-8">
-      <Card className="w-full max-w-2xl">
+       <Card className="w-full max-w-2xl overflow-hidden">
         <CardHeader className="text-center">
            <div className="flex items-center justify-center gap-2 mb-2">
             <HeartPulse className="h-8 w-8 text-primary" />
@@ -134,33 +150,28 @@ export default function QuizPage() {
             Responda para podermos te conhecer melhor e sugerir a jornada ideal para você.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-8">
-          {quizQuestions.map((q, index) => (
-            <div key={q.id}>
-              <p className="font-semibold mb-4">{index + 1}. {q.question}</p>
+        <div className="px-6">
+            <Progress value={progress} className="w-full mb-6" />
+        </div>
+        <CardContent className="space-y-8 min-h-[280px]">
+          <div key={currentQuestion.id} className={cn("transition-all duration-500", isExiting ? 'opacity-0 -translate-x-10' : 'opacity-100 translate-x-0')}>
+              <p className="font-semibold mb-4 text-center text-lg">{currentQuestion.question}</p>
               <RadioGroup
-                value={answers[q.id]}
-                onValueChange={(value) => handleAnswerChange(q.id, value)}
-                className="space-y-2"
+                value={answers[currentQuestion.id] || ""}
+                onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
+                className="space-y-3"
               >
-                {q.options.map((opt) => (
-                  <div key={opt.value} className="flex items-center space-x-2">
-                    <RadioGroupItem value={opt.value} id={`${q.id}-${opt.value}`} />
-                    <Label htmlFor={`${q.id}-${opt.value}`} className="font-normal">{opt.label}</Label>
+                {currentQuestion.options.map((opt) => (
+                  <div key={opt.value} className="flex items-center space-x-3 rounded-md border p-4 transition-all hover:bg-muted/50 has-[input:checked]:bg-primary/10 has-[input:checked]:border-primary">
+                    <RadioGroupItem value={opt.value} id={`${currentQuestion.id}-${opt.value}`} />
+                    <Label htmlFor={`${currentQuestion.id}-${opt.value}`} className="font-normal text-base flex-1 cursor-pointer">{opt.label}</Label>
                   </div>
                 ))}
               </RadioGroup>
             </div>
-          ))}
         </CardContent>
-        <CardFooter>
-          <Button
-            className="w-full"
-            onClick={calculateResult}
-            disabled={!allQuestionsAnswered}
-          >
-            Ver meu plano ideal
-          </Button>
+         <CardFooter>
+            {/* O rodapé pode ser usado para botões de navegação se necessário, mas a transição é automática. */}
         </CardFooter>
       </Card>
 
