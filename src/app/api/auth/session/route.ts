@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
         return response;
       }
     }
-    return NextResponse.json({ status: 'unauthorized' }, { status: 401 });
+    return NextResponse.json({ status: 'unauthorized', message: 'Token de autorização ausente ou inválido.' }, { status: 401 });
   } catch (error) {
     console.error('Session login error:', error);
     return NextResponse.json({ status: 'error', message: 'Internal Server Error' }, { status: 500 });

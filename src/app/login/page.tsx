@@ -59,17 +59,14 @@ export default function LoginPage() {
     const response = await fetch("/api/auth/session", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${idToken}`,
       },
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: "Falha ao criar sessão." }));
-      throw new Error(errorData.message || "Falha ao criar sessão.");
+        // Lançar um erro aqui será capturado pelo bloco catch principal
+        throw new Error("Falha ao criar a sessão do servidor.");
     }
-
-    return await response.json();
   };
 
   const handleSignUp = async () => {
@@ -86,9 +83,19 @@ export default function LoginPage() {
 
       router.push("/");
     } catch (error: any) {
+        let description = "Ocorreu um erro desconhecido. Tente novamente.";
+        if (error.code) {
+            if (error.code === 'auth/email-already-in-use') {
+                description = "Este e-mail já está em uso por outra conta.";
+            } else if (error.code === 'auth/weak-password') {
+                description = "A senha é muito fraca. Por favor, escolha uma senha mais forte.";
+            }
+        } else if (error.message) {
+            description = error.message;
+        }
       toast({
         title: "Erro ao Criar Conta",
-        description: error.message,
+        description: description,
         variant: "destructive",
       });
     } finally {
@@ -109,9 +116,18 @@ export default function LoginPage() {
       router.push("/");
     } catch (error: any) {
       console.error("Login error:", error);
+       let description = "Ocorreu um erro desconhecido. Tente novamente.";
+        if (error.code) {
+             if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                description = "Email ou senha inválidos. Por favor, verifique e tente novamente.";
+            }
+        } else if (error.message) {
+            description = error.message;
+        }
+
       toast({
         title: "Erro de Autenticação",
-        description: "Email ou senha inválidos.",
+        description: description,
         variant: "destructive",
       });
     } finally {
