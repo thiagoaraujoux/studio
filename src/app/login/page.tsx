@@ -39,6 +39,21 @@ export default function LoginPage() {
   const auth = getAuth(app);
   const db = getFirestore(app);
 
+  const createSession = async (user: User) => {
+    const idToken = await user.getIdToken();
+    const response = await fetch("/api/auth/session", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: "Falha ao criar a sessão do servidor." }));
+      throw new Error(errorData.message || "Falha ao criar a sessão do servidor.");
+    }
+  };
+  
   const saveUserToFirestore = async (user: User) => {
     const userRef = doc(db, "usuarios", user.uid);
     const docSnap = await getDoc(userRef);
@@ -54,27 +69,12 @@ export default function LoginPage() {
     }
   };
 
-  const handleAuthSuccess = async (user: User) => {
-    const idToken = await user.getIdToken();
-    const response = await fetch("/api/auth/session", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${idToken}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: "Falha ao criar a sessão do servidor." }));
-      throw new Error(errorData.message || "Falha ao criar a sessão do servidor.");
-    }
-  };
-
   const handleSignUp = async () => {
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await saveUserToFirestore(userCredential.user);
-      await handleAuthSuccess(userCredential.user);
+      await createSession(userCredential.user);
 
       toast({
         title: "Conta Criada com Sucesso!",
@@ -107,7 +107,7 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      await handleAuthSuccess(userCredential.user);
+      await createSession(userCredential.user);
       
       toast({
         title: "Login bem-sucedido!",
@@ -142,7 +142,7 @@ export default function LoginPage() {
     try {
       const result = await signInWithPopup(auth, provider);
       await saveUserToFirestore(result.user);
-      await handleAuthSuccess(result.user);
+      await createSession(result.user);
 
       toast({
         title: "Login com Google bem-sucedido!",
@@ -153,7 +153,7 @@ export default function LoginPage() {
         console.error("Google Sign-In error:", error);
       toast({
         title: "Erro com Google Sign-In",
-        description: "Não foi possível fazer login com o Google. Tente novamente.",
+        description: error.message || "Não foi possível fazer login com o Google. Tente novamente.",
         variant: "destructive",
       });
     } finally {
