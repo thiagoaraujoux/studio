@@ -8,20 +8,20 @@ import {
 import { Award, Star, Trophy, Zap } from "lucide-react";
 
 const achievements = [
-  { icon: Trophy, title: "Fitness Pro", unlocked: true },
-  { icon: Award, title: "Early Bird", unlocked: true },
-  { icon: Star, title: "Perfect Week", unlocked: true },
-  { icon: Zap, title: "Streak Master", unlocked: false },
-  { icon: Trophy, title: "Challenge Champ", unlocked: false },
-  { icon: Award, title: "Mindful Master", unlocked: true },
+  { icon: Trophy, title: "Profissional Fitness", unlocked: true },
+  { icon: Award, title: "Pássaro Madrugador", unlocked: true },
+  { icon: Star, title: "Semana Perfeita", unlocked: true },
+  { icon: Zap, title: "Mestre da Sequência", unlocked: false },
+  { icon: Trophy, title: "Campeão de Desafio", unlocked: false },
+  { icon: Award, title: "Mestre da Atenção Plena", unlocked: true },
 ];
 
 export function Achievements() {
   return (
     <Card className="transition-all hover:shadow-lg">
       <CardHeader>
-        <CardTitle>Achievements</CardTitle>
-        <CardDescription>Badges you've earned.</CardDescription>
+        <CardTitle>Conquistas</CardTitle>
+        <CardDescription>Medalhas que você ganhou.</CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-3 gap-4">
         {achievements.map((achievement) => (

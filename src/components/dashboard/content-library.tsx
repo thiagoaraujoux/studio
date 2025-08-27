@@ -18,24 +18,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const libraryItems = {
   workouts: [
-    { title: "Full Body Strength", duration: "45 min", image: "https://picsum.photos/600/400?random=1", hint: "workout fitness" },
-    { title: "Morning Yoga Flow", duration: "30 min", image: "https://picsum.photos/600/400?random=2", hint: "yoga meditation" },
-    { title: "HIIT Cardio Blast", duration: "20 min", image: "https://picsum.photos/600/400?random=3", hint: "running cardio" },
+    { title: "Força Total do Corpo", duration: "45 min", image: "https://picsum.photos/600/400?random=1", hint: "workout fitness" },
+    { title: "Fluxo de Yoga Matinal", duration: "30 min", image: "https://picsum.photos/600/400?random=2", hint: "yoga meditation" },
+    { title: "Explosão de Cardio HIIT", duration: "20 min", image: "https://picsum.photos/600/400?random=3", hint: "running cardio" },
   ],
   diets: [
-    { title: "Clean Eating Basics", category: "Nutrition Plan", image: "https://picsum.photos/600/400?random=4", hint: "healthy food" },
-    { title: "Healthy Smoothie Recipes", category: "Recipe Guide", image: "https://picsum.photos/600/400?random=5", hint: "smoothie fruit" },
-    { title: "Meal Prep for the Week", category: "Guide", image: "https://picsum.photos/600/400?random=6", hint: "meal prep" },
+    { title: "Princípios da Alimentação Limpa", category: "Plano de Nutrição", image: "https://picsum.photos/600/400?random=4", hint: "healthy food" },
+    { title: "Receitas de Smoothie Saudável", category: "Guia de Receitas", image: "https://picsum.photos/600/400?random=5", hint: "smoothie fruit" },
+    { title: "Preparo de Refeições da Semana", category: "Guia", image: "https://picsum.photos/600/400?random=6", hint: "meal prep" },
   ],
   meditations: [
-    { title: "Mindfulness for Beginners", duration: "10 min", image: "https://picsum.photos/600/400?random=7", hint: "zen stones" },
-    { title: "Stress Relief Session", duration: "15 min", image: "https://picsum.photos/600/400?random=8", hint: "calm beach" },
-    { title: "Deep Sleep Meditation", duration: "20 min", image: "https://picsum.photos/600/400?random=9", hint: "night sky" },
+    { title: "Atenção Plena para Iniciantes", duration: "10 min", image: "https://picsum.photos/600/400?random=7", hint: "zen stones" },
+    { title: "Sessão de Alívio de Estresse", duration: "15 min", image: "https://picsum.photos/600/400?random=8", hint: "calm beach" },
+    { title: "Meditação para Sono Profundo", duration: "20 min", image: "https://picsum.photos/600/400?random=9", hint: "night sky" },
   ],
   challenges: [
-    { title: "30-Day Fitness Challenge", reward: "Exclusive Badge", image: "https://picsum.photos/600/400?random=10", hint: "trophy award" },
-    { title: "Mindful Month", reward: "Profile Theme", image: "https://picsum.photos/600/400?random=11", hint: "brain illustration" },
-    { title: "Hydration Hero", reward: "100 Points", image: "https://picsum.photos/600/400?random=12", hint: "water splash" },
+    { title: "Desafio Fitness de 30 Dias", reward: "Medalha Exclusiva", image: "https://picsum.photos/600/400?random=10", hint: "trophy award" },
+    { title: "Mês da Atenção Plena", reward: "Tema de Perfil", image: "https://picsum.photos/600/400?random=11", hint: "brain illustration" },
+    { title: "Herói da Hidratação", reward: "100 Pontos", image: "https://picsum.photos/600/400?random=12", hint: "water splash" },
   ],
 };
 
@@ -43,18 +43,18 @@ export function ContentLibrary() {
   return (
     <Card className="transition-all hover:shadow-lg">
       <CardHeader>
-        <CardTitle>Content Library</CardTitle>
+        <CardTitle>Biblioteca de Conteúdo</CardTitle>
         <CardDescription>
-          Explore workouts, diets, meditations, and challenges.
+          Explore treinos, dietas, meditações e desafios.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="workouts">
           <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
-            <TabsTrigger value="workouts"><Dumbbell className="mr-2" />Workouts</TabsTrigger>
-            <TabsTrigger value="diets"><Apple className="mr-2" />Diets</TabsTrigger>
-            <TabsTrigger value="meditations"><BrainCircuit className="mr-2" />Meditations</TabsTrigger>
-            <TabsTrigger value="challenges"><Trophy className="mr-2" />Challenges</TabsTrigger>
+            <TabsTrigger value="workouts"><Dumbbell className="mr-2" />Treinos</TabsTrigger>
+            <TabsTrigger value="diets"><Apple className="mr-2" />Dietas</TabsTrigger>
+            <TabsTrigger value="meditations"><BrainCircuit className="mr-2" />Meditações</TabsTrigger>
+            <TabsTrigger value="challenges"><Trophy className="mr-2" />Desafios</TabsTrigger>
           </TabsList>
           <TabsContent value="workouts" className="mt-4">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -130,7 +130,7 @@ export function ContentLibrary() {
                   />
                   <CardHeader>
                     <CardTitle>{item.title}</CardTitle>
-                    <CardDescription>Reward: {item.reward}</CardDescription>
+                    <CardDescription>Recompensa: {item.reward}</CardDescription>
                   </CardHeader>
                 </Card>
               ))}

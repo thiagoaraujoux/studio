@@ -17,22 +17,22 @@ const posts = [
     avatar: "https://picsum.photos/100?random=13",
     fallback: "JD",
     name: "Jane Doe",
-    time: "5m ago",
-    content: "Just finished the 'Full Body Strength' workout and feeling amazing! 🔥 So glad I joined this community.",
+    time: "5m atrás",
+    content: "Acabei de terminar o treino 'Força Total do Corpo' e estou me sentindo incrível! 🔥 Que bom que me juntei a esta comunidade.",
   },
   {
     avatar: "https://picsum.photos/100?random=14",
     fallback: "MS",
     name: "Mark Smith",
-    time: "1h ago",
-    content: "Any tips for staying motivated during a 30-day challenge? Day 5 is hitting me hard! 😅",
+    time: "1h atrás",
+    content: "Alguma dica para se manter motivado durante um desafio de 30 dias? O dia 5 está me pegando! 😅",
   },
   {
     avatar: "https://picsum.photos/100?random=15",
     fallback: "LR",
     name: "Linda Ray",
-    time: "3h ago",
-    content: "The healthy smoothie recipes are a game changer for my breakfast routine. Highly recommend the berry blast one! 🍓",
+    time: "3h atrás",
+    content: "As receitas de smoothie saudável são uma virada de jogo na minha rotina de café da manhã. Recomendo muito a de frutas vermelhas! 🍓",
   },
 ];
 
@@ -40,15 +40,15 @@ export function CommunityFeed() {
   return (
     <Card className="transition-all hover:shadow-lg">
       <CardHeader>
-        <CardTitle>Community Feed</CardTitle>
+        <CardTitle>Feed da Comunidade</CardTitle>
         <CardDescription>
-          Share your progress and connect with others.
+          Compartilhe seu progresso e conecte-se com outros.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
-          <Textarea placeholder="What's on your mind, Alex?" className="mb-2" />
-          <Button>Post to Feed</Button>
+          <Textarea placeholder="O que você está pensando, Alex?" className="mb-2" />
+          <Button>Publicar no Feed</Button>
         </div>
         <div className="space-y-4">
           {posts.map((post) => (
@@ -72,7 +72,7 @@ export function CommunityFeed() {
       </CardContent>
       <CardFooter>
         <Button variant="outline" className="w-full">
-          Load More
+          Carregar Mais
         </Button>
       </CardFooter>
     </Card>

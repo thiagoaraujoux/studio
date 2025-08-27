@@ -19,14 +19,14 @@ export function Header() {
         <div className="flex items-center gap-2">
           <HeartPulse className="h-6 w-6 text-primary" />
           <h1 className="text-xl font-bold tracking-tight text-foreground">
-            Vitalize Companion
+            Companheiro Vitalize
           </h1>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-9 w-9">
-                <AvatarImage src="https://picsum.photos/100" alt="User avatar" data-ai-hint="person" />
+                <AvatarImage src="https://picsum.photos/100" alt="Avatar do usuário" data-ai-hint="person" />
                 <AvatarFallback>AD</AvatarFallback>
               </Avatar>
             </Button>
@@ -43,12 +43,12 @@ export function Header() {
             <DropdownMenuSeparator />
             <DropdownMenuItem>
               <User className="mr-2 h-4 w-4" />
-              <span>Profile</span>
+              <span>Perfil</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
               <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
+              <span>Sair</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

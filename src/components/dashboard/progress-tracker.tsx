@@ -19,17 +19,17 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 
 const chartData = [
-  { month: "January", weight: 80 },
-  { month: "February", weight: 79 },
-  { month: "March", weight: 79.5 },
-  { month: "April", weight: 78 },
-  { month: "May", weight: 77 },
-  { month: "June", weight: 76 },
+  { month: "Janeiro", weight: 80 },
+  { month: "Fevereiro", weight: 79 },
+  { month: "Março", weight: 79.5 },
+  { month: "Abril", weight: 78 },
+  { month: "Maio", weight: 77 },
+  { month: "Junho", weight: 76 },
 ];
 
 const chartConfig = {
   weight: {
-    label: "Weight (kg)",
+    label: "Peso (kg)",
     color: "hsl(var(--primary))",
   },
 } satisfies ChartConfig;
@@ -38,22 +38,22 @@ export function ProgressTracker() {
   return (
     <Card className="transition-all hover:shadow-lg">
       <CardHeader>
-        <CardTitle>Progress Tracker</CardTitle>
-        <CardDescription>Log your daily weight and measurements.</CardDescription>
+        <CardTitle>Acompanhamento de Progresso</CardTitle>
+        <CardDescription>Registre seu peso e medidas diárias.</CardDescription>
       </CardHeader>
       <CardContent>
         <form className="grid gap-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <label htmlFor="weight">Weight (kg)</label>
+              <label htmlFor="weight">Peso (kg)</label>
               <Input id="weight" type="number" defaultValue="76" />
             </div>
             <div className="grid gap-2">
-              <label htmlFor="body-fat">Body Fat (%)</label>
+              <label htmlFor="body-fat">Gordura Corporal (%)</label>
               <Input id="body-fat" type="number" defaultValue="18.5" />
             </div>
           </div>
-          <Button type="submit" className="w-full">Log Progress</Button>
+          <Button type="submit" className="w-full">Registrar Progresso</Button>
         </form>
         <div className="mt-6">
           <ChartContainer config={chartConfig} className="h-[200px] w-full">

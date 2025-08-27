@@ -28,7 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { suggestWorkoutPlan } from "@/ai/flows/suggest-workout-plan";
 
 const formSchema = z.object({
-  equipment: z.string().min(2, "Please list at least one piece of equipment."),
+  equipment: z.string().min(2, "Por favor, liste pelo menos um equipamento."),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -52,10 +52,10 @@ export function WorkoutSuggester() {
       const result = await suggestWorkoutPlan({ equipment: values.equipment });
       setWorkoutPlan(result.workoutPlan);
     } catch (error) {
-      console.error("Error suggesting workout plan:", error);
+      console.error("Erro ao sugerir plano de treino:", error);
       toast({
-        title: "Error",
-        description: "Failed to generate workout plan. Please try again.",
+        title: "Erro",
+        description: "Falha ao gerar o plano de treino. Por favor, tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -69,9 +69,9 @@ export function WorkoutSuggester() {
         <div className="flex items-center gap-3">
           <Wand2 className="h-6 w-6 text-primary" />
           <div className="flex flex-col">
-            <CardTitle>AI Workout Suggester</CardTitle>
+            <CardTitle>Sugestão de Treino com IA</CardTitle>
             <CardDescription>
-              Get a workout plan based on the equipment you have.
+              Receba um plano de treino com base no equipamento que você tem.
             </CardDescription>
           </div>
         </div>
@@ -84,10 +84,10 @@ export function WorkoutSuggester() {
               name="equipment"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Available Equipment</FormLabel>
+                  <FormLabel>Equipamento Disponível</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="e.g., dumbbells, yoga mat, resistance bands"
+                      placeholder="ex: halteres, tapete de ioga, faixas de resistência"
                       {...field}
                     />
                   </FormControl>
@@ -101,10 +101,10 @@ export function WorkoutSuggester() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
+                  Gerando...
                 </>
               ) : (
-                "Get Suggestions"
+                "Obter Sugestões"
               )}
             </Button>
           </CardFooter>
@@ -113,7 +113,7 @@ export function WorkoutSuggester() {
       {workoutPlan && (
         <>
           <CardHeader>
-            <CardTitle>Your Suggested Workout</CardTitle>
+            <CardTitle>Seu Treino Sugerido</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="prose prose-sm max-w-none rounded-lg border bg-muted/30 p-4">

@@ -10,23 +10,23 @@ import { Apple, BrainCircuit, Dumbbell } from "lucide-react";
 const activities = [
   {
     icon: Dumbbell,
-    title: "Completed 'Full Body Strength'",
-    time: "2 hours ago",
+    title: "Concluiu 'Força Total do Corpo'",
+    time: "2 horas atrás",
   },
   {
     icon: BrainCircuit,
-    title: "Meditated for 15 minutes",
-    time: "Yesterday",
+    title: "Meditou por 15 minutos",
+    time: "Ontem",
   },
   {
     icon: Apple,
-    title: "Logged 'Clean Eating' meal",
-    time: "Yesterday",
+    title: "Registrou refeição 'Alimentação Limpa'",
+    time: "Ontem",
   },
   {
     icon: Dumbbell,
-    title: "Completed 'HIIT Cardio Blast'",
-    time: "2 days ago",
+    title: "Concluiu 'Explosão de Cardio HIIT'",
+    time: "2 dias atrás",
   },
 ];
 
@@ -34,9 +34,9 @@ export function ActivityLog() {
   return (
     <Card className="transition-all hover:shadow-lg">
       <CardHeader>
-        <CardTitle>Activity Log</CardTitle>
+        <CardTitle>Registro de Atividades</CardTitle>
         <CardDescription>
-          Your recent activities on Vitalize.
+          Suas atividades recentes no Vitalize.
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -15,14 +15,14 @@ export function UserProfile() {
       <CardHeader className="flex flex-row items-start bg-muted/50">
         <div className="flex items-center gap-4">
           <Avatar className="h-16 w-16 border">
-            <AvatarImage src="https://picsum.photos/100" alt="User avatar" data-ai-hint="person" />
+            <AvatarImage src="https://picsum.photos/100" alt="Avatar do usuário" data-ai-hint="person" />
             <AvatarFallback>AD</AvatarFallback>
           </Avatar>
           <div className="grid gap-0.5">
             <CardTitle className="group flex items-center gap-2 text-lg">
               Alex Doe
             </CardTitle>
-            <CardDescription>Vitalize Premium Member</CardDescription>
+            <CardDescription>Membro Vitalize Premium</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -31,7 +31,7 @@ export function UserProfile() {
           <li className="flex items-center justify-between">
             <span className="text-muted-foreground flex items-center gap-2">
               <User className="h-4 w-4" />
-              Username
+              Nome de usuário
             </span>
             <span>@alex_doe</span>
           </li>
@@ -45,10 +45,10 @@ export function UserProfile() {
           <li className="flex items-center justify-between">
             <span className="text-muted-foreground flex items-center gap-2">
               <FileText className="h-4 w-4" />
-              Plan
+              Plano
             </span>
             <Button variant="link" className="p-0 h-auto text-accent-foreground">
-              View Details
+              Ver Detalhes
             </Button>
           </li>
         </ul>
