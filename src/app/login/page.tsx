@@ -49,7 +49,7 @@ export default function LoginPage() {
         displayName: user.displayName,
         photoURL: user.photoURL,
         createdAt: new Date(),
-        role: "user", // Adiciona a role padrão
+        role: "user",
       });
     }
   };
@@ -64,8 +64,8 @@ export default function LoginPage() {
     });
 
     if (!response.ok) {
-        // Lançar um erro aqui será capturado pelo bloco catch principal
-        throw new Error("Falha ao criar a sessão do servidor.");
+      const errorData = await response.json().catch(() => ({ message: "Falha ao criar a sessão do servidor." }));
+      throw new Error(errorData.message || "Falha ao criar a sessão do servidor.");
     }
   };
 
