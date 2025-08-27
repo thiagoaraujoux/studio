@@ -2,34 +2,9 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+// NOTE: Middleware is temporarily disabled to rely on client-side auth checks.
+// The security is handled by Firestore rules.
 export async function middleware(request: NextRequest) {
-  const session = request.cookies.get('session');
-
-  const { pathname } = request.nextUrl;
-
-  // Rotas públicas que não exigem autenticação
-  const publicPaths = ['/login', '/quiz'];
-
-  // Se não houver sessão e o usuário tentar acessar uma página protegida
-  if (!session && !publicPaths.includes(pathname) && pathname !== '/') {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  // Se houver uma sessão e o usuário tentar acessar /login ou /quiz, redirecione para o dashboard
-  if (session && publicPaths.includes(pathname)) {
-     return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-  
-  // Se o usuário estiver na raiz, redirecione para o login (se não logado) ou dashboard (se logado)
-  if (pathname === '/') {
-    if (session) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    } else {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
-  }
-
-
   return NextResponse.next();
 }
 

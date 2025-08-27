@@ -23,15 +23,9 @@ export function Header() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      const response = await fetch('/api/auth/session', {
-          method: 'DELETE',
-      });
-
-      if (response.ok) {
-          router.push('/login');
-      } else {
-          console.error('Failed to logout session');
-      }
+      // Since we are not using server-side sessions anymore,
+      // we just need to sign out from the client and redirect.
+      router.push('/login');
     } catch (error) {
       console.error("Error signing out: ", error);
     }

@@ -7,7 +7,6 @@ import {
   getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  User,
 } from "firebase/auth";
 import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
@@ -35,7 +34,7 @@ export default function LoginPage() {
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  const saveUserToFirestore = async (user: User) => {
+  const saveUserToFirestore = async (user: any) => {
     const userRef = doc(db, "usuarios", user.uid);
     const docSnap = await getDoc(userRef);
     if (!docSnap.exists()) {
@@ -50,22 +49,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleAuthSuccess = async (user: User, isNewUser = false) => {
-    await saveUserToFirestore(user);
-    const idToken = await user.getIdToken();
-
-    const response = await fetch("/api/auth/session", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${idToken}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: "Falha ao criar a sessão do servidor." }));
-      throw new Error(errorData.message || "Falha ao criar a sessão do servidor.");
-    }
-    
+  const handleAuthSuccess = (isNewUser = false) => {
     toast({
       title: `Bem-vindo(a)!`,
       description: isNewUser ? "Conta criada e login realizado com sucesso." : "Login realizado com sucesso.",
@@ -106,7 +90,8 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      await handleAuthSuccess(userCredential.user);
+      await saveUserToFirestore(userCredential.user);
+      handleAuthSuccess(false);
     } catch (error) {
       handleAuthError(error);
     } finally {
@@ -118,7 +103,8 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await handleAuthSuccess(userCredential.user, true);
+      await saveUserToFirestore(userCredential.user);
+      handleAuthSuccess(true);
     } catch (error) {
       handleAuthError(error);
     } finally {
