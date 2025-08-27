@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Loader2, History, Trash2, Pencil, AreaChart, User, LineChartIcon, Weight, BarChart } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, History, Trash2, Pencil, AreaChart, User, LineChartIcon, Weight, BarChart, Percent } from "lucide-react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {
   getFirestore,
@@ -89,6 +89,10 @@ const chartConfig = {
   leanMass: {
     label: "Massa Magra (kg)",
     color: "hsl(var(--chart-2))",
+  },
+  bodyFat: {
+    label: "Gordura Corporal (%)",
+    color: "hsl(var(--chart-4))",
   },
 } satisfies ChartConfig;
 
@@ -213,20 +217,33 @@ export function ProgressTracker() {
         leanMass: parseFloat((entry.weight * (1 - entry.bodyFat! / 100)).toFixed(1)),
     }));
   
-  const getChartDomain = (data: number[], defaultMin: number, defaultMax: number, padding = 0.1) => {
-      if (data.length === 0) return [defaultMin, defaultMax];
+  const bodyFatChartData = progressHistory
+    .filter(entry => entry.bodyFat && entry.bodyFat > 0)
+    .map(entry => ({
+        date: format(entry.date, "PPP", { locale: ptBR }),
+        label: format(entry.date, "dd/MM"),
+        bodyFat: entry.bodyFat,
+    }));
+  
+  const getChartDomain = (data: number[], paddingFactor = 0.05) => {
+      if (data.length === 0) return [0, 100];
       const min = Math.min(...data);
       const max = Math.max(...data);
       const range = max - min;
-      // Adiciona um "padding" para o gráfico não ficar colado nas bordas
-      const paddedMin = Math.max(0, min - range * padding);
-      const paddedMax = max + range * padding;
+      // If all values are the same, provide a small range around the value.
+      if (range === 0) {
+          const padding = min * paddingFactor;
+          return [min - padding, max + padding];
+      }
+      const paddedMin = Math.max(0, min - range * paddingFactor);
+      const paddedMax = max + range * paddingFactor;
       return [paddedMin, paddedMax];
   };
 
-  const yDomainWeight = getChartDomain(weightChartData.map(d => d.weight), 50, 100, 0.1);
-  const yDomainBmi = getChartDomain(bmiChartData.map(d => d.imc), 14, 36, 0.15);
-  const yDomainLeanMass = getChartDomain(leanMassChartData.map(d => d.leanMass), 40, 80, 0.1);
+  const yDomainWeight = getChartDomain(weightChartData.map(d => d.weight));
+  const yDomainBmi = getChartDomain(bmiChartData.map(d => d.imc));
+  const yDomainLeanMass = getChartDomain(leanMassChartData.map(d => d.leanMass));
+  const yDomainBodyFat = getChartDomain(bodyFatChartData.map(d => d.bodyFat!));
 
 
   async function onSubmit(data: ProgressFormValues) {
@@ -475,7 +492,7 @@ export function ProgressTracker() {
                         <LineChart data={weightChartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
                             <CartesianGrid vertical={false} />
                             <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
-                            <YAxis tickLine={false} axisLine={false} tickMargin={8} domain={yDomainWeight} width={40} fontSize={12} unit="kg" />
+                            <YAxis type="number" domain={yDomainWeight} tickLine={false} axisLine={false} tickMargin={8} width={40} fontSize={12} unit="kg" />
                             <Tooltip cursor={true} content={<ChartTooltipContent indicator="dot" labelKey="date" />} />
                             <Line dataKey="weight" type="natural" stroke="var(--color-weight)" strokeWidth={2} dot={{fill: "var(--color-weight)"}} activeDot={{r: 6}} />
                         </LineChart>
@@ -507,13 +524,13 @@ export function ProgressTracker() {
                   <LineChart data={bmiChartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
                     <CartesianGrid vertical={false} />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
-                    <YAxis tickLine={false} axisLine={false} tickMargin={8} domain={yDomainBmi} width={30} fontSize={12} />
+                    <YAxis type="number" domain={yDomainBmi} tickLine={false} axisLine={false} tickMargin={8} width={30} fontSize={12} />
                     <Tooltip cursor={true} content={<ChartTooltipContent indicator="dot" labelKey="date" />} />
                     
                     <ReferenceArea y1={yDomainBmi[0]} y2={18.5} fill="hsl(210 90% 55% / 0.1)" stroke="hsl(210 90% 55% / 0.2)" strokeDasharray="3 3" />
                     <ReferenceArea y1={18.5} y2={24.9} fill="hsl(120 60% 47% / 0.1)" stroke="hsl(120 60% 47% / 0.2)" strokeDasharray="3 3" />
                     <ReferenceArea y1={25} y2={29.9} fill="hsl(48 95% 50% / 0.1)" stroke="hsl(48 95% 50% / 0.2)" strokeDasharray="3 3" />
-                    <ReferenceArea y1={30} y2={yDomainBmi[1]} fill="hsl(var(--destructive) / 0.1)" stroke="hsl(var(--destructive) / 0.2)" strokeDasharray="3 3" />
+                    <ReferenceArea y1={30} y2={yDomainBmi[1] > 30 ? yDomainBmi[1] : 35} fill="hsl(var(--destructive) / 0.1)" stroke="hsl(var(--destructive) / 0.2)" strokeDasharray="3 3" />
 
                     <Line dataKey="imc" type="natural" stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} dot={<ColoredDot />} activeDot={{ r: 6 }} />
                   </LineChart>
@@ -541,7 +558,7 @@ export function ProgressTracker() {
                         <LineChart data={leanMassChartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
                             <CartesianGrid vertical={false} />
                             <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
-                            <YAxis tickLine={false} axisLine={false} tickMargin={8} domain={yDomainLeanMass} width={40} fontSize={12} unit="kg" />
+                            <YAxis type="number" domain={yDomainLeanMass} tickLine={false} axisLine={false} tickMargin={8} width={40} fontSize={12} unit="kg" />
                             <Tooltip cursor={true} content={<ChartTooltipContent indicator="dot" labelKey="date" />} />
                             <Line dataKey="leanMass" type="natural" stroke="var(--color-leanMass)" strokeWidth={2} dot={{fill: "var(--color-leanMass)"}} activeDot={{r: 6}} />
                         </LineChart>
@@ -552,11 +569,34 @@ export function ProgressTracker() {
                     </div>
                 )}
             </div>
+             <div>
+              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                <Percent className="h-5 w-5" />
+                Gráfico de Evolução da Gordura Corporal
+              </h3>
+               {bodyFatChartData.length > 0 ? (
+                    <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                        <LineChart data={bodyFatChartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
+                            <YAxis type="number" domain={yDomainBodyFat} tickLine={false} axisLine={false} tickMargin={8} width={40} fontSize={12} unit="%" />
+                            <Tooltip cursor={true} content={<ChartTooltipContent indicator="dot" labelKey="date" />} />
+                            <Line dataKey="bodyFat" type="natural" stroke="var(--color-bodyFat)" strokeWidth={2} dot={{fill: "var(--color-bodyFat)"}} activeDot={{r: 6}} />
+                        </LineChart>
+                    </ChartContainer>
+                ) : (
+                    <div className="flex items-center justify-center h-[200px] bg-muted/50 rounded-lg text-center p-4">
+                        <p className="text-muted-foreground">Registre sua gordura corporal para ver a evolução.</p>
+                    </div>
+                )}
+            </div>
         </div>
       </CardContent>
     </Card>
   );
 }
+
+    
 
     
 
