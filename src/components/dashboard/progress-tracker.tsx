@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Loader2, History, Trash2, Pencil } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, History, Trash2, Pencil, AreaChart, User } from "lucide-react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {
   getFirestore,
@@ -19,7 +19,9 @@ import {
   orderBy,
   Timestamp,
   deleteDoc,
+  getDoc,
 } from "firebase/firestore";
+import Link from 'next/link';
 
 import { cn } from "@/lib/utils";
 import { app } from "@/lib/firebase";
@@ -38,7 +40,7 @@ import {
   ChartTooltipContent,
   ChartConfig,
 } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea } from "recharts";
 import {
   Form,
   FormControl,
@@ -64,7 +66,7 @@ import {
   } from "@/components/ui/dialog"
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import type { User } from "firebase/auth";
+import type { User as FirebaseUser } from "firebase/auth";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -76,8 +78,8 @@ type ProgressEntry = {
 };
 
 const chartConfig = {
-  weight: {
-    label: "Peso (kg)",
+  imc: {
+    label: "IMC",
     color: "hsl(var(--primary))",
   },
 } satisfies ChartConfig;
@@ -102,6 +104,7 @@ export function ProgressTracker() {
   const [isLoading, setIsLoading] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [progressHistory, setProgressHistory] = useState<ProgressEntry[]>([]);
+  const [height, setHeight] = useState<number | null>(null);
   const { toast } = useToast();
   const auth = getAuth(app);
   const db = getFirestore(app);
@@ -116,8 +119,15 @@ export function ProgressTracker() {
   });
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (user: User | null) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user: FirebaseUser | null) => {
       if (user) {
+        // Fetch user height
+        const userRef = doc(db, "usuarios", user.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists() && userSnap.data().height) {
+            setHeight(userSnap.data().height);
+        }
+
         const userProgressRef = collection(db, "usuarios", user.uid, "progresso");
         const q = query(userProgressRef, orderBy("date", "asc"));
 
@@ -159,6 +169,7 @@ export function ProgressTracker() {
         return () => unsubscribeSnapshot();
       } else {
         setProgressHistory([]);
+        setHeight(null);
       }
     });
 
@@ -166,11 +177,16 @@ export function ProgressTracker() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth, db]);
 
-  const chartData = progressHistory.map(entry => ({
-      date: format(entry.date, "PPP", { locale: ptBR }),
-      label: format(entry.date, "dd/MM"),
-      weight: entry.weight
-  }));
+  const bmiChartData = height ? progressHistory.map(entry => ({
+    date: format(entry.date, "PPP", { locale: ptBR }),
+    label: format(entry.date, "dd/MM"),
+    imc: parseFloat((entry.weight / (height * height)).toFixed(2)),
+  })) : [];
+  
+  const yDomain = bmiChartData.length > 0
+    ? [Math.min(...bmiChartData.map(d => d.imc), 15) - 2, Math.max(...bmiChartData.map(d => d.imc), 32) + 2]
+    : [15, 35];
+
 
   async function onSubmit(data: ProgressFormValues) {
     const user = auth.currentUser;
@@ -252,7 +268,7 @@ export function ProgressTracker() {
             <CardHeader className="flex flex-row items-center justify-between">
                 <div className="grid gap-0.5">
                     <CardTitle>Acompanhamento de Progresso</CardTitle>
-                    <CardDescription>Registre seu peso e medidas diárias.</CardDescription>
+                    <CardDescription>Registre seu peso e veja a evolução do seu IMC.</CardDescription>
                 </div>
                 <DialogTrigger asChild>
                     <Button variant="outline" size="icon">
@@ -385,10 +401,24 @@ export function ProgressTracker() {
           </form>
         </Form>
         <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-2">Gráfico de Evolução de Peso</h3>
-          {chartData.length > 0 ? (
+          <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+            <AreaChart className="h-5 w-5" />
+            Gráfico de Evolução do IMC
+          </h3>
+          {!height ? (
+             <div className="flex flex-col items-center justify-center h-[200px] bg-muted/50 rounded-lg text-center p-4">
+                <p className="text-muted-foreground">Informe sua altura no perfil para ver o gráfico de IMC.</p>
+                <Button variant="link" asChild className="mt-2">
+                    <Link href="/dashboard/profile">
+                        <User className="mr-2 h-4 w-4"/>
+                        Ir para o Perfil
+                    </Link>
+                </Button>
+             </div>
+          ) : bmiChartData.length > 0 ? (
+            <>
             <ChartContainer config={chartConfig} className="h-[200px] w-full">
-              <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
+              <LineChart data={bmiChartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis
                   dataKey="label"
@@ -401,7 +431,7 @@ export function ProgressTracker() {
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
-                  domain={['dataMin - 2', 'dataMax + 2']}
+                  domain={yDomain}
                   width={30}
                   fontSize={12}
                 />
@@ -409,13 +439,18 @@ export function ProgressTracker() {
                   cursor={true}
                   content={<ChartTooltipContent indicator="dot" labelKey="date" />}
                 />
+                <ReferenceArea y1={0} y2={18.5} fill="hsl(210 90% 70% / 0.1)" stroke="hsl(210 90% 70% / 0.2)" strokeDasharray="3 3" />
+                <ReferenceArea y1={18.5} y2={24.9} fill="hsl(120 60% 47% / 0.1)" stroke="hsl(120 60% 47% / 0.2)" strokeDasharray="3 3" />
+                <ReferenceArea y1={25} y2={29.9} fill="hsl(48 95% 50% / 0.1)" stroke="hsl(48 95% 50% / 0.2)" strokeDasharray="3 3" />
+                <ReferenceArea y1={30} y2={yDomain[1]} fill="hsl(var(--destructive) / 0.1)" stroke="hsl(var(--destructive) / 0.2)" strokeDasharray="3 3" />
+
                 <Line
-                  dataKey="weight"
+                  dataKey="imc"
                   type="natural"
-                  stroke="var(--color-weight)"
+                  stroke="var(--color-imc)"
                   strokeWidth={2}
                   dot={{
-                    fill: "var(--color-weight)",
+                    fill: "var(--color-imc)",
                   }}
                   activeDot={{
                     r: 6,
@@ -423,6 +458,13 @@ export function ProgressTracker() {
                 />
               </LineChart>
             </ChartContainer>
+            <div className="mt-4 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(210,90%,70%)]"></span>Abaixo do Peso</div>
+                <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(120,60%,47%)]"></span>Peso Ideal</div>
+                <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(48,95%,50%)]"></span>Sobrepeso</div>
+                <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(var(--destructive))]"></span>Obesidade</div>
+            </div>
+            </>
           ) : (
              <div className="flex items-center justify-center h-[200px] bg-muted/50 rounded-lg">
                 <p className="text-muted-foreground">Sem dados para exibir. Registre seu primeiro progresso!</p>
