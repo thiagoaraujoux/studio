@@ -70,7 +70,7 @@ export default function LoginPage() {
     }
     
     toast({
-      title: `Bem-vindo(a) de volta!`,
+      title: `Bem-vindo(a)!`,
       description: isNewUser ? "Conta criada e login realizado com sucesso." : "Login realizado com sucesso.",
     });
     router.push("/dashboard");

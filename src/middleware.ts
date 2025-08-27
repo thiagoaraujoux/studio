@@ -12,7 +12,7 @@ export async function middleware(request: NextRequest) {
 
   // Se não houver sessão e o usuário tentar acessar uma página protegida
   if (!session && !publicPaths.includes(pathname) && pathname !== '/') {
-    return NextResponse.redirect(new URL('/quiz', request.url));
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
   // Se houver uma sessão e o usuário tentar acessar /login ou /quiz, redirecione para o dashboard
@@ -20,12 +20,12 @@ export async function middleware(request: NextRequest) {
      return NextResponse.redirect(new URL('/dashboard', request.url));
   }
   
-  // Se o usuário estiver na raiz, redirecione para o quiz (se não logado) ou dashboard (se logado)
+  // Se o usuário estiver na raiz, redirecione para o login (se não logado) ou dashboard (se logado)
   if (pathname === '/') {
     if (session) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     } else {
-      return NextResponse.redirect(new URL('/quiz', request.url));
+      return NextResponse.redirect(new URL('/login', request.url));
     }
   }
 
