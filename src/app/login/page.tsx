@@ -7,12 +7,9 @@ import {
   getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithPopup,
   User,
 } from "firebase/auth";
 import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
-import { FcGoogle } from "react-icons/fc";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -91,9 +88,6 @@ export default function LoginPage() {
         case 'auth/weak-password':
           description = "A senha é muito fraca. Por favor, escolha uma senha mais forte.";
           break;
-        case 'auth/popup-closed-by-user':
-          description = "A janela de login do Google foi fechada antes da conclusão.";
-          return; 
         default:
           description = `Erro do Firebase: ${error.message}`;
       }
@@ -132,19 +126,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-    const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      await handleAuthSuccess(result.user);
-    } catch (error) {
-      handleAuthError(error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background">
       <div className="flex items-center gap-2 mb-4">
@@ -163,7 +144,7 @@ export default function LoginPage() {
             <CardHeader>
               <CardTitle>Acessar sua conta</CardTitle>
               <CardDescription>
-                Use seu e-mail e senha ou o Google para entrar.
+                Use seu e-mail e senha para entrar.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -236,22 +217,6 @@ export default function LoginPage() {
             </CardFooter>
           </Card>
         </TabsContent>
-        <div className="relative mt-6">
-            <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                Ou continue com
-                </span>
-            </div>
-        </div>
-        <div className="mt-6">
-            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FcGoogle className="mr-2 h-4 w-4" />}
-                Google
-            </Button>
-        </div>
       </Tabs>
     </div>
   );
