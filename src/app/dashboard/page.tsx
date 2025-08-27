@@ -3,6 +3,7 @@ import { ActivityLog } from "@/components/dashboard/activity-log";
 import { CommunityFeed } from "@/components/dashboard/community-feed";
 import { ContentLibrary } from "@/components/dashboard/content-library";
 import { Header } from "@/components/dashboard/header";
+import { MealSuggester } from "@/components/dashboard/meal-suggester";
 import { ProgressTracker } from "@/components/dashboard/progress-tracker";
 import { UserProfile } from "@/components/dashboard/user-profile";
 import { WorkoutSuggester } from "@/components/dashboard/workout-suggester";
@@ -14,7 +15,10 @@ export default function DashboardPage() {
       <main className="container flex-1 py-6">
         <div className="grid auto-rows-max items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
           <div className="grid gap-6 lg:col-span-2">
-            <WorkoutSuggester />
+            <div className="grid gap-6 lg:grid-cols-2">
+              <WorkoutSuggester />
+              <MealSuggester />
+            </div>
             <ContentLibrary />
             <CommunityFeed />
           </div>

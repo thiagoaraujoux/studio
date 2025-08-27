@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Wand2, Loader2 } from "lucide-react";
+import { Apple, Loader2 } from "lucide-react";
 
 import {
   Card,
@@ -26,37 +26,37 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { suggestWorkoutPlan } from "@/ai/flows/suggest-workout-plan";
+import { suggestMealPlan } from "@/ai/flows/suggest-meal-plan";
 
 const formSchema = z.object({
-  equipment: z.string().min(2, "Por favor, liste pelo menos um equipamento."),
+  ingredients: z.string().min(3, "Por favor, liste pelo menos um ingrediente."),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
-export function WorkoutSuggester() {
-  const [workoutPlan, setWorkoutPlan] = useState<string | null>(null);
+export function MealSuggester() {
+  const [mealPlan, setMealPlan] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      equipment: "",
+      ingredients: "",
     },
   });
 
   async function onSubmit(values: FormValues) {
     setIsLoading(true);
-    setWorkoutPlan(null);
+    setMealPlan(null);
     try {
-      const result = await suggestWorkoutPlan({ equipment: values.equipment });
-      setWorkoutPlan(result.workoutPlan);
+      const result = await suggestMealPlan({ ingredients: values.ingredients });
+      setMealPlan(result.mealPlan);
     } catch (error) {
-      console.error("Erro ao sugerir plano de treino:", error);
+      console.error("Erro ao sugerir plano de refeição:", error);
       toast({
         title: "Erro",
-        description: "Falha ao gerar o plano de treino. Por favor, tente novamente.",
+        description: "Falha ao gerar o plano de refeição. Por favor, tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -111,11 +111,11 @@ export function WorkoutSuggester() {
     <Card className="w-full transition-all hover:shadow-lg flex flex-col">
       <CardHeader>
         <div className="flex items-center gap-3">
-          <Wand2 className="h-6 w-6 text-primary" />
+          <Apple className="h-6 w-6 text-primary" />
           <div className="flex flex-col">
-            <CardTitle>Sugestão de Treino com IA</CardTitle>
+            <CardTitle>Sugestão de Refeição com IA</CardTitle>
             <CardDescription>
-              Receba um plano de treino com base no equipamento que você tem.
+              Receba ideias de refeições com o que você tem na geladeira.
             </CardDescription>
           </div>
         </div>
@@ -125,13 +125,13 @@ export function WorkoutSuggester() {
           <CardContent>
             <FormField
               control={form.control}
-              name="equipment"
+              name="ingredients"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Equipamento Disponível</FormLabel>
+                  <FormLabel>Ingredientes Disponíveis</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="ex: halteres, tapete de ioga, faixas"
+                      placeholder="ex: frango, arroz, brócolis, tomate"
                       {...field}
                     />
                   </FormControl>
@@ -157,7 +157,7 @@ export function WorkoutSuggester() {
       {workoutPlan && (
         <>
           <CardHeader>
-            <CardTitle>Seu Treino Sugerido</CardTitle>
+            <CardTitle>Sua Refeição Sugerida</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="rounded-lg border bg-muted/30 p-4">
