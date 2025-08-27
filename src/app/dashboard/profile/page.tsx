@@ -9,7 +9,7 @@ import { z } from "zod";
 import { getAuth, updateProfile, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { doc, setDoc, getDoc, collection, query, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea } from "recharts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { app, db } from "@/lib/firebase";
-import { Loader2, KeyRound, User as UserIcon, HeartPulse, AreaChart } from "lucide-react";
+import { Loader2, KeyRound, User as UserIcon, HeartPulse, AreaChart, ArrowLeft } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -215,6 +215,11 @@ export default function ProfilePage() {
     label: format(entry.date, "dd/MM"),
     imc: parseFloat((entry.weight / (height * height)).toFixed(2)),
   })) : [];
+  
+  const yDomain = bmiChartData.length > 0
+    ? [Math.min(...bmiChartData.map(d => d.imc), 15) - 2, Math.max(...bmiChartData.map(d => d.imc), 32) + 2]
+    : [15, 35];
+
 
   if (!user) {
     return (
@@ -227,6 +232,13 @@ export default function ProfilePage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-start bg-background p-4 sm:p-6 lg:p-8">
       <div className="w-full max-w-4xl space-y-8">
+        <div className="flex justify-start">
+            <Button variant="ghost" onClick={() => router.push('/dashboard')}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Voltar para o Dashboard
+            </Button>
+        </div>
+
         <div className="text-center">
           <h1 className="text-3xl font-bold">Configurações da Conta</h1>
           <p className="text-muted-foreground">Gerencie suas informações pessoais, de saúde e segurança.</p>
@@ -297,20 +309,32 @@ export default function ProfilePage() {
                                     Gráfico de Evolução do IMC
                                 </h3>
                                 {bmiChartData.length > 0 ? (
-                                    <ChartContainer config={chartConfig} className="h-[200px] w-full">
-                                    <LineChart data={bmiChartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
+                                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                                    <LineChart data={bmiChartData} margin={{ top: 20, right: 40, left: 0, bottom: 20 }}>
                                         <CartesianGrid vertical={false} />
                                         <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
-                                        <YAxis tickLine={false} axisLine={false} tickMargin={8} domain={['dataMin - 2', 'dataMax + 2']} width={30} fontSize={12}/>
+                                        <YAxis tickLine={false} axisLine={false} tickMargin={8} domain={yDomain} width={30} fontSize={12}/>
                                         <Tooltip cursor={true} content={<ChartTooltipContent indicator="dot" labelKey="date" />} />
+                                        
+                                        <ReferenceArea y1={0} y2={18.5} fill="hsl(var(--primary) / 0.1)" stroke="hsl(var(--primary) / 0.2)" strokeDasharray="3 3" />
+                                        <ReferenceArea y1={18.5} y2={24.9} fill="hsl(120 60% 47% / 0.1)" stroke="hsl(120 60% 47% / 0.2)" strokeDasharray="3 3" />
+                                        <ReferenceArea y1={25} y2={29.9} fill="hsl(38 92% 50% / 0.1)" stroke="hsl(38 92% 50% / 0.2)" strokeDasharray="3 3" />
+                                        <ReferenceArea y1={30} y2={yDomain[1]} fill="hsl(var(--destructive) / 0.1)" stroke="hsl(var(--destructive) / 0.2)" strokeDasharray="3 3" />
+
                                         <Line dataKey="imc" type="natural" stroke="var(--color-imc)" strokeWidth={2} dot={{ fill: "var(--color-imc)" }} activeDot={{ r: 6 }} />
                                     </LineChart>
                                     </ChartContainer>
                                 ) : (
-                                    <div className="flex items-center justify-center h-[200px] bg-muted/50 rounded-lg">
+                                    <div className="flex items-center justify-center h-[250px] bg-muted/50 rounded-lg">
                                     <p className="text-muted-foreground text-center">Informe sua altura e registre seu peso para ver a evolução do IMC.</p>
                                     </div>
                                 )}
+                                <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(var(--primary)/0.2)]"></span>Abaixo do Peso (&lt;18.5)</div>
+                                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(120,60%,47%)/0.2)]"></span>Peso Ideal (18.5-24.9)</div>
+                                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(38,92%,50%)/0.2)]"></span>Sobrepeso (25-29.9)</div>
+                                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(var(--destructive)/0.2)]"></span>Obesidade (&ge;30)</div>
+                                </div>
                             </div>
                         </CardContent>
                         <CardFooter>
@@ -357,13 +381,7 @@ export default function ProfilePage() {
                 </Card>
             </TabsContent>
         </Tabs>
-
-         <div className="text-center">
-            <Button variant="link" onClick={() => router.push('/dashboard')}>Voltar para o Dashboard</Button>
-        </div>
       </div>
     </div>
   );
 }
-
-    
