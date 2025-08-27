@@ -18,7 +18,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -27,8 +26,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { app, db } from "@/lib/firebase";
 import { Loader2, KeyRound, User as UserIcon, HeartPulse, AreaChart } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const profileFormSchema = z.object({
   displayName: z.string().min(2, "O nome deve ter pelo menos 2 caracteres.").optional(),
@@ -225,135 +224,139 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-      <div className="w-full max-w-2xl space-y-8">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <UserIcon className="h-6 w-6 text-primary" />
-              <div>
-                <CardTitle>Informações do Perfil</CardTitle>
-                <CardDescription>Atualize seu nome e foto de perfil.</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <form onSubmit={profileForm.handleSubmit(handleProfileUpdate)}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="displayName">Nome de Exibição</Label>
-                <Input id="displayName" {...profileForm.register("displayName")} />
-                {profileForm.formState.errors.displayName && <p className="text-sm font-medium text-destructive">{profileForm.formState.errors.displayName.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="photoURL">URL da Foto</Label>
-                <Input id="photoURL" placeholder="https://example.com/photo.jpg" {...profileForm.register("photoURL")} />
-                 {profileForm.formState.errors.photoURL && <p className="text-sm font-medium text-destructive">{profileForm.formState.errors.photoURL.message}</p>}
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button type="submit" disabled={isProfileLoading}>
-                {isProfileLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Salvar Alterações
-              </Button>
-            </CardFooter>
-          </form>
-        </Card>
+    <div className="flex min-h-screen flex-col items-center justify-start bg-background p-4 sm:p-6 lg:p-8">
+      <div className="w-full max-w-4xl space-y-8">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold">Configurações da Conta</h1>
+          <p className="text-muted-foreground">Gerencie suas informações pessoais, de saúde e segurança.</p>
+        </div>
         
-        <Card>
-            <CardHeader>
-                <div className="flex items-center gap-3">
-                    <HeartPulse className="h-6 w-6 text-primary" />
-                    <div>
+        <Tabs defaultValue="profile" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="profile"><UserIcon className="mr-2 h-4 w-4" /> Perfil</TabsTrigger>
+                <TabsTrigger value="health"><HeartPulse className="mr-2 h-4 w-4" /> Saúde</TabsTrigger>
+                <TabsTrigger value="security"><KeyRound className="mr-2 h-4 w-4" /> Segurança</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="profile">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Informações do Perfil</CardTitle>
+                        <CardDescription>Atualize seu nome e foto de perfil.</CardDescription>
+                    </CardHeader>
+                    <form onSubmit={profileForm.handleSubmit(handleProfileUpdate)}>
+                        <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="displayName">Nome de Exibição</Label>
+                            <Input id="displayName" {...profileForm.register("displayName")} />
+                            {profileForm.formState.errors.displayName && <p className="text-sm font-medium text-destructive">{profileForm.formState.errors.displayName.message}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="photoURL">URL da Foto</Label>
+                            <Input id="photoURL" placeholder="https://example.com/photo.jpg" {...profileForm.register("photoURL")} />
+                            {profileForm.formState.errors.photoURL && <p className="text-sm font-medium text-destructive">{profileForm.formState.errors.photoURL.message}</p>}
+                        </div>
+                        </CardContent>
+                        <CardFooter>
+                        <Button type="submit" disabled={isProfileLoading}>
+                            {isProfileLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Salvar Alterações
+                        </Button>
+                        </CardFooter>
+                    </form>
+                </Card>
+            </TabsContent>
+
+            <TabsContent value="health">
+                <Card>
+                    <CardHeader>
                         <CardTitle>Informações de Saúde</CardTitle>
                         <CardDescription>Gerencie suas informações de saúde para um melhor acompanhamento.</CardDescription>
-                    </div>
-                </div>
-            </CardHeader>
-            <form onSubmit={healthForm.handleSubmit(handleHealthUpdate)}>
-                <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                        <div className="space-y-2">
-                            <Label htmlFor="height">Altura (m)</Label>
-                            <Input id="height" type="number" step="0.01" placeholder="Ex: 1.75" {...healthForm.register("height")} />
-                            {healthForm.formState.errors.height && <p className="text-sm font-medium text-destructive">{healthForm.formState.errors.height.message}</p>}
-                        </div>
-                         <div className="space-y-2">
-                            <Label>Peso Atual</Label>
-                            <Input value={lastWeight ? `${lastWeight.toFixed(1)} kg` : "N/A"} disabled />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>IMC Atual</Label>
-                            <Input value={currentBmi || "N/A"} disabled />
-                        </div>
-                    </div>
-                     <div className="mt-6">
-                        <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                            <AreaChart className="h-5 w-5" />
-                            Gráfico de Evolução do IMC
-                        </h3>
-                        {bmiChartData.length > 0 ? (
-                            <ChartContainer config={chartConfig} className="h-[200px] w-full">
-                            <LineChart data={bmiChartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
-                                <CartesianGrid vertical={false} />
-                                <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
-                                <YAxis tickLine={false} axisLine={false} tickMargin={8} domain={['dataMin - 2', 'dataMax + 2']} width={30} fontSize={12}/>
-                                <Tooltip cursor={true} content={<ChartTooltipContent indicator="dot" labelKey="date" />} />
-                                <Line dataKey="imc" type="natural" stroke="var(--color-imc)" strokeWidth={2} dot={{ fill: "var(--color-imc)" }} activeDot={{ r: 6 }} />
-                            </LineChart>
-                            </ChartContainer>
-                        ) : (
-                            <div className="flex items-center justify-center h-[200px] bg-muted/50 rounded-lg">
-                            <p className="text-muted-foreground text-center">Informe sua altura e registre seu peso para ver a evolução do IMC.</p>
+                    </CardHeader>
+                    <form onSubmit={healthForm.handleSubmit(handleHealthUpdate)}>
+                        <CardContent className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                <div className="space-y-2">
+                                    <Label htmlFor="height">Altura (m)</Label>
+                                    <Input id="height" type="number" step="0.01" placeholder="Ex: 1.75" {...healthForm.register("height")} />
+                                    {healthForm.formState.errors.height && <p className="text-sm font-medium text-destructive">{healthForm.formState.errors.height.message}</p>}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Peso Atual</Label>
+                                    <Input value={lastWeight ? `${lastWeight.toFixed(1)} kg` : "N/A"} disabled />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>IMC Atual</Label>
+                                    <Input value={currentBmi || "N/A"} disabled />
+                                </div>
                             </div>
-                        )}
-                    </div>
-                </CardContent>
-                <CardFooter>
-                    <Button type="submit" disabled={isHealthLoading}>
-                        {isHealthLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Salvar Altura
-                    </Button>
-                </CardFooter>
-            </form>
-        </Card>
+                            <div className="mt-6">
+                                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                                    <AreaChart className="h-5 w-5" />
+                                    Gráfico de Evolução do IMC
+                                </h3>
+                                {bmiChartData.length > 0 ? (
+                                    <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                                    <LineChart data={bmiChartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
+                                        <CartesianGrid vertical={false} />
+                                        <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
+                                        <YAxis tickLine={false} axisLine={false} tickMargin={8} domain={['dataMin - 2', 'dataMax + 2']} width={30} fontSize={12}/>
+                                        <Tooltip cursor={true} content={<ChartTooltipContent indicator="dot" labelKey="date" />} />
+                                        <Line dataKey="imc" type="natural" stroke="var(--color-imc)" strokeWidth={2} dot={{ fill: "var(--color-imc)" }} activeDot={{ r: 6 }} />
+                                    </LineChart>
+                                    </ChartContainer>
+                                ) : (
+                                    <div className="flex items-center justify-center h-[200px] bg-muted/50 rounded-lg">
+                                    <p className="text-muted-foreground text-center">Informe sua altura e registre seu peso para ver a evolução do IMC.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </CardContent>
+                        <CardFooter>
+                            <Button type="submit" disabled={isHealthLoading}>
+                                {isHealthLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Salvar Altura
+                            </Button>
+                        </CardFooter>
+                    </form>
+                </Card>
+            </TabsContent>
 
-        <Card>
-          <CardHeader>
-             <div className="flex items-center gap-3">
-                <KeyRound className="h-6 w-6 text-primary" />
-                <div>
-                    <CardTitle>Alterar Senha</CardTitle>
-                    <CardDescription>Para sua segurança, você precisa informar sua senha atual.</CardDescription>
-                </div>
-            </div>
-          </CardHeader>
-          <form onSubmit={passwordForm.handleSubmit(handlePasswordUpdate)}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="currentPassword">Senha Atual</Label>
-                <Input id="currentPassword" type="password" {...passwordForm.register("currentPassword")} />
-                 {passwordForm.formState.errors.currentPassword && <p className="text-sm font-medium text-destructive">{passwordForm.formState.errors.currentPassword.message}</p>}
-              </div>
-              <Separator />
-              <div className="space-y-2">
-                <Label htmlFor="newPassword">Nova Senha</Label>
-                <Input id="newPassword" type="password" {...passwordForm.register("newPassword")} />
-                 {passwordForm.formState.errors.newPassword && <p className="text-sm font-medium text-destructive">{passwordForm.formState.errors.newPassword.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
-                <Input id="confirmPassword" type="password" {...passwordForm.register("confirmPassword")} />
-                 {passwordForm.formState.errors.confirmPassword && <p className="text-sm font-medium text-destructive">{passwordForm.formState.errors.confirmPassword.message}</p>}
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button type="submit" disabled={isPasswordLoading}>
-                {isPasswordLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Alterar Senha
-              </Button>
-            </CardFooter>
-          </form>
-        </Card>
+            <TabsContent value="security">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Alterar Senha</CardTitle>
+                        <CardDescription>Para sua segurança, você precisa informar sua senha atual.</CardDescription>
+                    </CardHeader>
+                    <form onSubmit={passwordForm.handleSubmit(handlePasswordUpdate)}>
+                        <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="currentPassword">Senha Atual</Label>
+                            <Input id="currentPassword" type="password" {...passwordForm.register("currentPassword")} />
+                            {passwordForm.formState.errors.currentPassword && <p className="text-sm font-medium text-destructive">{passwordForm.formState.errors.currentPassword.message}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="newPassword">Nova Senha</Label>
+                            <Input id="newPassword" type="password" {...passwordForm.register("newPassword")} />
+                            {passwordForm.formState.errors.newPassword && <p className="text-sm font-medium text-destructive">{passwordForm.formState.errors.newPassword.message}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
+                            <Input id="confirmPassword" type="password" {...passwordForm.register("confirmPassword")} />
+                            {passwordForm.formState.errors.confirmPassword && <p className="text-sm font-medium text-destructive">{passwordForm.formState.errors.confirmPassword.message}</p>}
+                        </div>
+                        </CardContent>
+                        <CardFooter>
+                        <Button type="submit" disabled={isPasswordLoading}>
+                            {isPasswordLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Alterar Senha
+                        </Button>
+                        </CardFooter>
+                    </form>
+                </Card>
+            </TabsContent>
+        </Tabs>
+
          <div className="text-center">
             <Button variant="link" onClick={() => router.push('/dashboard')}>Voltar para o Dashboard</Button>
         </div>
@@ -361,3 +364,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    
