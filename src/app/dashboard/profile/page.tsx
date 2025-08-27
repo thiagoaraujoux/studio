@@ -316,9 +316,9 @@ export default function ProfilePage() {
                                         <YAxis tickLine={false} axisLine={false} tickMargin={8} domain={yDomain} width={30} fontSize={12}/>
                                         <Tooltip cursor={true} content={<ChartTooltipContent indicator="dot" labelKey="date" />} />
                                         
-                                        <ReferenceArea y1={0} y2={18.5} fill="hsl(var(--primary) / 0.1)" stroke="hsl(var(--primary) / 0.2)" strokeDasharray="3 3" />
+                                        <ReferenceArea y1={0} y2={18.5} fill="hsl(204 98% 73% / 0.1)" stroke="hsl(204 98% 73% / 0.2)" strokeDasharray="3 3" />
                                         <ReferenceArea y1={18.5} y2={24.9} fill="hsl(120 60% 47% / 0.1)" stroke="hsl(120 60% 47% / 0.2)" strokeDasharray="3 3" />
-                                        <ReferenceArea y1={25} y2={29.9} fill="hsl(38 92% 50% / 0.1)" stroke="hsl(38 92% 50% / 0.2)" strokeDasharray="3 3" />
+                                        <ReferenceArea y1={25} y2={29.9} fill="hsl(48 95% 50% / 0.1)" stroke="hsl(48 95% 50% / 0.2)" strokeDasharray="3 3" />
                                         <ReferenceArea y1={30} y2={yDomain[1]} fill="hsl(var(--destructive) / 0.1)" stroke="hsl(var(--destructive) / 0.2)" strokeDasharray="3 3" />
 
                                         <Line dataKey="imc" type="natural" stroke="var(--color-imc)" strokeWidth={2} dot={{ fill: "var(--color-imc)" }} activeDot={{ r: 6 }} />
@@ -330,10 +330,10 @@ export default function ProfilePage() {
                                     </div>
                                 )}
                                 <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-                                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(var(--primary)/0.2)]"></span>Abaixo do Peso (&lt;18.5)</div>
-                                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(120,60%,47%)/0.2)]"></span>Peso Ideal (18.5-24.9)</div>
-                                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(38,92%,50%)/0.2)]"></span>Sobrepeso (25-29.9)</div>
-                                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(var(--destructive)/0.2)]"></span>Obesidade (&ge;30)</div>
+                                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(204,98%,73%)]"></span>Abaixo do Peso (&lt;18.5)</div>
+                                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(120,60%,47%)]"></span>Peso Ideal (18.5-24.9)</div>
+                                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(48,95%,50%)]"></span>Sobrepeso (25-29.9)</div>
+                                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[hsl(var(--destructive))]"></span>Obesidade (&ge;30)</div>
                                 </div>
                             </div>
                         </CardContent>
