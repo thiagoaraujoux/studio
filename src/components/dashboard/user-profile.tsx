@@ -13,6 +13,7 @@ import {
 import { app } from "@/lib/firebase";
 import { getAuth } from "firebase/auth";
 import { FileText, Mail, User } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
 
@@ -67,8 +68,8 @@ export function UserProfile() {
               <FileText className="h-4 w-4" />
               Plano
             </span>
-            <Button variant="link" className="p-0 h-auto text-primary">
-              Ver Detalhes
+            <Button variant="link" asChild className="p-0 h-auto text-primary">
+              <Link href="/dashboard/profile">Editar Perfil</Link>
             </Button>
           </li>
         </ul>

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { getAuth, signOut } from "firebase/auth";
 import { app } from "@/lib/firebase";
+import Link from "next/link";
 
 export function Header() {
   const router = useRouter();
@@ -49,7 +50,7 @@ export function Header() {
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-9 w-9">
                 <AvatarImage src={currentUser?.photoURL || "https://picsum.photos/100"} alt="Avatar do usuário" data-ai-hint="person" />
-                <AvatarFallback>{currentUser?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                <AvatarFallback>{displayName.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
@@ -63,9 +64,11 @@ export function Header() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <User className="mr-2 h-4 w-4" />
-              <span>Perfil</span>
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/profile">
+                <User className="mr-2 h-4 w-4" />
+                <span>Perfil</span>
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut}>
