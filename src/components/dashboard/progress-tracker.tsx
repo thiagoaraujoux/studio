@@ -1,0 +1,97 @@
+"use client";
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartConfig,
+} from "@/components/ui/chart";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+
+const chartData = [
+  { month: "January", weight: 80 },
+  { month: "February", weight: 79 },
+  { month: "March", weight: 79.5 },
+  { month: "April", weight: 78 },
+  { month: "May", weight: 77 },
+  { month: "June", weight: 76 },
+];
+
+const chartConfig = {
+  weight: {
+    label: "Weight (kg)",
+    color: "hsl(var(--primary))",
+  },
+} satisfies ChartConfig;
+
+export function ProgressTracker() {
+  return (
+    <Card className="transition-all hover:shadow-lg">
+      <CardHeader>
+        <CardTitle>Progress Tracker</CardTitle>
+        <CardDescription>Log your daily weight and measurements.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form className="grid gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <label htmlFor="weight">Weight (kg)</label>
+              <Input id="weight" type="number" defaultValue="76" />
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="body-fat">Body Fat (%)</label>
+              <Input id="body-fat" type="number" defaultValue="18.5" />
+            </div>
+          </div>
+          <Button type="submit" className="w-full">Log Progress</Button>
+        </form>
+        <div className="mt-6">
+          <ChartContainer config={chartConfig} className="h-[200px] w-full">
+            <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="month"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                tickFormatter={(value) => value.slice(0, 3)}
+              />
+               <YAxis
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                domain={['dataMin - 2', 'dataMax + 2']}
+              />
+              <Tooltip
+                cursor={false}
+                content={<ChartTooltipContent indicator="dot" />}
+              />
+              <Line
+                dataKey="weight"
+                type="natural"
+                stroke="var(--color-weight)"
+                strokeWidth={2}
+                dot={{
+                  fill: "var(--color-weight)",
+                }}
+                activeDot={{
+                  r: 6,
+                }}
+              />
+            </LineChart>
+          </ChartContainer>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
