@@ -180,7 +180,6 @@ export default function LoginPage() {
                 <Input
                   id="email-login"
                   type="email"
-                  placeholder="m@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isLoading}
@@ -256,7 +255,6 @@ export default function LoginPage() {
                 <Input
                   id="email-signup"
                   type="email"
-                  placeholder="m@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isLoading}
