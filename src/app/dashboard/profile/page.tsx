@@ -306,39 +306,52 @@ export default function ProfilePage() {
 
     setIsProgressLoading(true);
     try {
-        const batch = writeBatch(db);
         const userProgressRef = collection(db, "usuarios", user.uid, "progresso");
         
-        const newDateString = format(data.date, "yyyy-MM-dd");
-        const newProgressDocRef = doc(userProgressRef, newDateString);
-        
-        // If we are editing, delete the old entry
         if (editingEntryId) {
+            // Logic for editing an existing entry
+            const batch = writeBatch(db);
             const oldDocRef = doc(userProgressRef, editingEntryId);
-            // Only delete if the ID (date) has changed
-            if (oldDocRef.id !== newProgressDocRef.id) {
-                batch.delete(oldDocRef);
-            }
+            const newDateString = format(data.date, "yyyy-MM-dd");
+            const newProgressDocRef = doc(userProgressRef, newDateString);
+
+            // Delete the old document first
+            batch.delete(oldDocRef);
+
+            // Set the new document with potentially new date as ID
+            batch.set(newProgressDocRef, {
+                weight: data.weight,
+                bodyFat: data.bodyFat || null,
+                date: Timestamp.fromDate(data.date),
+            });
+
+            await batch.commit();
+            toast({
+                title: "Sucesso!",
+                description: "Seu progresso foi atualizado.",
+            });
+
+        } else {
+            // Logic for adding a new entry
+            const newDateString = format(data.date, "yyyy-MM-dd");
+            const newProgressDocRef = doc(userProgressRef, newDateString);
+            await setDoc(newProgressDocRef, {
+                weight: data.weight,
+                bodyFat: data.bodyFat || null,
+                date: Timestamp.fromDate(data.date),
+            }, { merge: true });
+            toast({
+                title: "Sucesso!",
+                description: "Seu progresso foi salvo.",
+            });
         }
-        
-        batch.set(newProgressDocRef, {
-            weight: data.weight,
-            bodyFat: data.bodyFat || null,
-            date: Timestamp.fromDate(data.date),
-        }, { merge: true });
-
-        await batch.commit();
-
-        toast({
-            title: "Sucesso!",
-            description: `Seu progresso foi ${editingEntryId ? 'atualizado' : 'salvo'}.`,
-        });
         
         setEditingEntryId(null);
         progressForm.reset({ date: new Date(), weight: undefined, bodyFat: undefined });
 
     } catch (error: any) {
-        toast({ title: "Erro", description: "Não foi possível salvar seu progresso.", variant: "destructive"});
+        console.error("Progress submit error:", error);
+        toast({ title: "Erro", description: "Não foi possível salvar seu progresso. Verifique se já existe um registro para esta data.", variant: "destructive"});
     } finally {
         setIsProgressLoading(false);
     }
@@ -746,7 +759,5 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
 
     
