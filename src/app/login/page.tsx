@@ -69,7 +69,6 @@ export default function LoginPage() {
       throw new Error(errorData.message || "Falha ao criar sessão.");
     }
 
-    // Aguarda o corpo da resposta para garantir que a sessão foi criada
     return await response.json();
   };
 
@@ -109,6 +108,7 @@ export default function LoginPage() {
       });
       router.push("/");
     } catch (error: any) {
+      console.error("Login error:", error);
       toast({
         title: "Erro de Autenticação",
         description: "Email ou senha inválidos.",
@@ -134,9 +134,10 @@ export default function LoginPage() {
       });
       router.push("/");
     } catch (error: any) {
+        console.error("Google Sign-In error:", error);
       toast({
         title: "Erro com Google Sign-In",
-        description: error.message,
+        description: "Não foi possível fazer login com o Google. Tente novamente.",
         variant: "destructive",
       });
     } finally {
