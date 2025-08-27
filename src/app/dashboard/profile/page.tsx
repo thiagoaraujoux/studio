@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { getAuth, updateProfile, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import type { User } from "firebase/auth";
-import { doc, setDoc, getDoc, collection, query, orderBy, onSnapshot, Timestamp, deleteDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, collection, query, orderBy, onSnapshot, Timestamp, deleteDoc, writeBatch } from "firebase/firestore";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, Dot } from "recharts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -158,7 +158,8 @@ export default function ProfilePage() {
   const [progressHistory, setProgressHistory] = useState<ProgressEntry[]>([]);
   const [height, setHeight] = useState<number | null>(null);
   const [activeChart, setActiveChart] = useState<ChartType>("weight");
-  const router = useRouter();
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [router] = useRouter();
   const { toast } = useToast();
   const auth = getAuth(app);
 
@@ -305,34 +306,57 @@ export default function ProfilePage() {
 
     setIsProgressLoading(true);
     try {
-      const dateString = format(data.date, "yyyy-MM-dd");
-      const userProgressRef = collection(db, "usuarios", user.uid, "progresso");
-      const progressDocRef = doc(userProgressRef, dateString);
+        const batch = writeBatch(db);
+        const userProgressRef = collection(db, "usuarios", user.uid, "progresso");
+        
+        const newDateString = format(data.date, "yyyy-MM-dd");
+        const newProgressDocRef = doc(userProgressRef, newDateString);
+        
+        // If we are editing, delete the old entry
+        if (editingEntryId) {
+            const oldDocRef = doc(userProgressRef, editingEntryId);
+            // Only delete if the ID (date) has changed
+            if (oldDocRef.id !== newProgressDocRef.id) {
+                batch.delete(oldDocRef);
+            }
+        }
+        
+        batch.set(newProgressDocRef, {
+            weight: data.weight,
+            bodyFat: data.bodyFat || null,
+            date: Timestamp.fromDate(data.date),
+        }, { merge: true });
 
-      await setDoc(progressDocRef, {
-        weight: data.weight,
-        bodyFat: data.bodyFat || null,
-        date: Timestamp.fromDate(data.date),
-      }, { merge: true });
+        await batch.commit();
 
-      toast({
-        title: "Sucesso!",
-        description: "Seu progresso foi salvo.",
-      });
-      progressForm.reset({ date: new Date(), weight: undefined, bodyFat: undefined });
+        toast({
+            title: "Sucesso!",
+            description: `Seu progresso foi ${editingEntryId ? 'atualizado' : 'salvo'}.`,
+        });
+        
+        setEditingEntryId(null);
+        progressForm.reset({ date: new Date(), weight: undefined, bodyFat: undefined });
+
     } catch (error: any) {
         toast({ title: "Erro", description: "Não foi possível salvar seu progresso.", variant: "destructive"});
     } finally {
         setIsProgressLoading(false);
     }
-  };
+};
+
 
   const handleEditProgress = (entry: ProgressEntry) => {
+    setEditingEntryId(entry.id);
     progressForm.reset({
         date: entry.date,
         weight: entry.weight,
         bodyFat: entry.bodyFat || undefined,
     });
+  }
+  
+  const handleClearForm = () => {
+    setEditingEntryId(null);
+    progressForm.reset({ date: new Date(), weight: undefined, bodyFat: undefined });
   }
 
   const handleDeleteProgress = async (entryId: string) => {
@@ -618,11 +642,13 @@ export default function ProfilePage() {
                                 <div className="flex gap-2">
                                      <Button type="submit" className="w-full" disabled={isProgressLoading}>
                                         {isProgressLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        Salvar
+                                        {editingEntryId ? 'Salvar Alterações' : 'Salvar'}
                                     </Button>
-                                    <Button type="button" variant="outline" onClick={() => progressForm.reset({ date: new Date(), weight: undefined, bodyFat: undefined })}>
+                                    {editingEntryId && (
+                                    <Button type="button" variant="outline" onClick={handleClearForm}>
                                         Limpar
                                     </Button>
+                                    )}
                                 </div>
                             </form>
                         </Form>
@@ -720,3 +746,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    
