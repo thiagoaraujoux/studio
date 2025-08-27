@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, History, Trash2, Pencil } from "lucide-react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {
   getFirestore,
@@ -18,6 +18,7 @@ import {
   onSnapshot,
   orderBy,
   Timestamp,
+  deleteDoc,
 } from "firebase/firestore";
 
 import { cn } from "@/lib/utils";
@@ -51,13 +52,27 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogFooter,
+    DialogClose,
+  } from "@/components/ui/dialog"
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "firebase/auth";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
-type ProgressData = {
-  date: string;
-  weight: number;
+type ProgressEntry = {
+    id: string; // Document ID (e.g., "2024-07-29")
+    date: Date;
+    weight: number;
+    bodyFat?: number | null;
 };
 
 const chartConfig = {
@@ -73,7 +88,7 @@ const progressFormSchema = z.object({
     z.number().positive("O peso deve ser um número positivo.")
   ),
   bodyFat: z.preprocess(
-    (a) => parseFloat(z.string().optional().parse(a)),
+    (val) => (val === "" ? undefined : parseFloat(String(val))),
     z.number().positive("A gordura corporal deve ser um número positivo.").optional()
   ),
   date: z.date({
@@ -85,7 +100,8 @@ type ProgressFormValues = z.infer<typeof progressFormSchema>;
 
 export function ProgressTracker() {
   const [isLoading, setIsLoading] = useState(false);
-  const [chartData, setChartData] = useState<ProgressData[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [progressHistory, setProgressHistory] = useState<ProgressEntry[]>([]);
   const { toast } = useToast();
   const auth = getAuth(app);
   const db = getFirestore(app);
@@ -94,6 +110,8 @@ export function ProgressTracker() {
     resolver: zodResolver(progressFormSchema),
     defaultValues: {
       date: new Date(),
+      weight: 0,
+      bodyFat: undefined
     },
   });
 
@@ -106,35 +124,45 @@ export function ProgressTracker() {
         const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
           const data = snapshot.docs.map((doc) => {
             const docData = doc.data();
-            const date = (docData.date as Timestamp).toDate();
             return {
-              // Format date for the chart tooltip
-              date: format(date, "PPP", { locale: ptBR }),
-              // Format date for the X-axis label
-              label: format(date, "dd/MM"),
-              weight: docData.weight,
+                id: doc.id,
+                date: (docData.date as Timestamp).toDate(),
+                weight: docData.weight,
+                bodyFat: docData.bodyFat,
             };
           });
-          setChartData(data);
+          setProgressHistory(data);
           
-          if (data.length > 0) {
+          if (data.length > 0 && !form.formState.isDirty) {
             const lastEntry = data[data.length - 1];
             form.reset({
                 date: new Date(),
                 weight: lastEntry.weight,
-                bodyFat: doc.data().bodyFat || undefined
+                bodyFat: lastEntry.bodyFat || undefined
+            });
+          } else if (data.length === 0) {
+            form.reset({
+                date: new Date(),
+                weight: 0,
+                bodyFat: undefined
             });
           }
         });
 
         return () => unsubscribeSnapshot();
       } else {
-        setChartData([]);
+        setProgressHistory([]);
       }
     });
 
     return () => unsubscribeAuth();
   }, [auth, db, form]);
+
+  const chartData = progressHistory.map(entry => ({
+      date: format(entry.date, "PPP", { locale: ptBR }),
+      label: format(entry.date, "dd/MM"),
+      weight: entry.weight
+  }));
 
   async function onSubmit(data: ProgressFormValues) {
     const user = auth.currentUser;
@@ -157,13 +185,13 @@ export function ProgressTracker() {
         weight: data.weight,
         bodyFat: data.bodyFat || null,
         date: Timestamp.fromDate(data.date),
-        createdAt: Timestamp.now(),
       }, { merge: true });
 
       toast({
         title: "Sucesso!",
         description: "Seu progresso foi registrado.",
       });
+      form.reset({ ...data, date: new Date() });
     } catch (error) {
       console.error("Erro ao registrar progresso: ", error);
       toast({
@@ -176,12 +204,97 @@ export function ProgressTracker() {
     }
   }
 
+  const handleEdit = (entry: ProgressEntry) => {
+    form.reset({
+        date: entry.date,
+        weight: entry.weight,
+        bodyFat: entry.bodyFat || undefined,
+    });
+    setIsHistoryOpen(false);
+  }
+
+  const handleDelete = async (entryId: string) => {
+    const user = auth.currentUser;
+    if (!user) return;
+    if (confirm("Tem certeza que deseja excluir este registro?")) {
+        try {
+            const progressDocRef = doc(db, "usuarios", user.uid, "progresso", entryId);
+            await deleteDoc(progressDocRef);
+            toast({
+                title: "Sucesso!",
+                description: "Registro excluído."
+            });
+        } catch (error) {
+            console.error("Erro ao excluir registro: ", error);
+            toast({
+                title: "Erro",
+                description: "Não foi possível excluir o registro.",
+                variant: "destructive"
+            });
+        }
+    }
+  }
+
   return (
     <Card className="transition-all hover:shadow-lg">
-      <CardHeader>
-        <CardTitle>Acompanhamento de Progresso</CardTitle>
-        <CardDescription>Registre seu peso e medidas diárias.</CardDescription>
-      </CardHeader>
+        <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div className="grid gap-0.5">
+                    <CardTitle>Acompanhamento de Progresso</CardTitle>
+                    <CardDescription>Registre seu peso e medidas diárias.</CardDescription>
+                </div>
+                <DialogTrigger asChild>
+                    <Button variant="outline" size="icon">
+                        <History className="h-4 w-4" />
+                        <span className="sr-only">Ver Histórico</span>
+                    </Button>
+                </DialogTrigger>
+            </CardHeader>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Histórico de Progresso</DialogTitle>
+                    <DialogDescription>
+                        Aqui estão todos os seus registros. Você pode editar ou excluir qualquer entrada.
+                    </DialogDescription>
+                </DialogHeader>
+                <ScrollArea className="h-[300px] pr-4">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Data</TableHead>
+                                <TableHead className="text-right">Peso (kg)</TableHead>
+                                <TableHead className="text-right">Gordura Corporal (%)</TableHead>
+                                <TableHead className="text-right">Ações</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {progressHistory.slice().reverse().map((entry) => (
+                            <TableRow key={entry.id}>
+                                <TableCell>{format(entry.date, "dd/MM/yyyy")}</TableCell>
+                                <TableCell className="text-right">{entry.weight.toFixed(1)}</TableCell>
+                                <TableCell className="text-right">{entry.bodyFat ? entry.bodyFat.toFixed(1) : "N/A"}</TableCell>
+                                <TableCell className="text-right">
+                                    <Button variant="ghost" size="icon" onClick={() => handleEdit(entry)}>
+                                        <Pencil className="h-4 w-4" />
+                                        <span className="sr-only">Editar</span>
+                                    </Button>
+                                    <Button variant="ghost" size="icon" onClick={() => handleDelete(entry.id)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                        <span className="sr-only">Excluir</span>
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="outline">Fechar</Button>
+                    </DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
@@ -193,7 +306,7 @@ export function ProgressTracker() {
                   <FormItem>
                     <FormLabel>Peso (kg)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.1" {...field} />
+                      <Input type="number" step="0.1" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -206,7 +319,7 @@ export function ProgressTracker() {
                   <FormItem>
                     <FormLabel>Gordura Corporal (%)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.1" placeholder="Opcional" {...field} />
+                      <Input type="number" step="0.1" placeholder="Opcional" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -261,43 +374,51 @@ export function ProgressTracker() {
           </form>
         </Form>
         <div className="mt-6">
-          <ChartContainer config={chartConfig} className="h-[200px] w-full">
-            <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
-              <CartesianGrid vertical={false} />
-              <XAxis
-                dataKey="label"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-              />
-               <YAxis
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                domain={['dataMin - 2', 'dataMax + 2']}
-                width={30}
-              />
-              <Tooltip
-                cursor={true}
-                content={<ChartTooltipContent indicator="dot" labelKey="date" />}
-              />
-              <Line
-                dataKey="weight"
-                type="natural"
-                stroke="var(--color-weight)"
-                strokeWidth={2}
-                dot={{
-                  fill: "var(--color-weight)",
-                }}
-                activeDot={{
-                  r: 6,
-                }}
-              />
-            </LineChart>
-          </ChartContainer>
+          <h3 className="text-lg font-semibold mb-2">Gráfico de Evolução de Peso</h3>
+          {chartData.length > 0 ? (
+            <ChartContainer config={chartConfig} className="h-[200px] w-full">
+              <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                />
+                 <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  domain={['dataMin - 2', 'dataMax + 2']}
+                  width={30}
+                />
+                <Tooltip
+                  cursor={true}
+                  content={<ChartTooltipContent indicator="dot" labelKey="date" />}
+                />
+                <Line
+                  dataKey="weight"
+                  type="natural"
+                  stroke="var(--color-weight)"
+                  strokeWidth={2}
+                  dot={{
+                    fill: "var(--color-weight)",
+                  }}
+                  activeDot={{
+                    r: 6,
+                  }}
+                />
+              </LineChart>
+            </ChartContainer>
+          ) : (
+             <div className="flex items-center justify-center h-[200px] bg-muted/50 rounded-lg">
+                <p className="text-muted-foreground">Sem dados para exibir. Registre seu primeiro progresso!</p>
+             </div>
+          )}
         </div>
       </CardContent>
     </Card>
   );
 }
 
+    
