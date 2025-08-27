@@ -88,8 +88,8 @@ const progressFormSchema = z.object({
     z.number().positive("O peso deve ser um número positivo.")
   ),
   bodyFat: z.preprocess(
-    (val) => (val === "" ? undefined : parseFloat(String(val))),
-    z.number().positive("A gordura corporal deve ser um número positivo.").optional()
+    (val) => (val === "" ? null : parseFloat(String(val))),
+    z.number().positive("A gordura corporal deve ser um número positivo.").nullable().optional()
   ),
   date: z.date({
     required_error: "A data é obrigatória.",
@@ -147,6 +147,13 @@ export function ProgressTracker() {
                 bodyFat: undefined
             });
           }
+        }, (error) => {
+          console.error("Erro ao buscar histórico de progresso:", error);
+          toast({
+            title: "Erro de Carregamento",
+            description: "Não foi possível carregar o histórico de progresso.",
+            variant: "destructive"
+          });
         });
 
         return () => unsubscribeSnapshot();
@@ -156,7 +163,8 @@ export function ProgressTracker() {
     });
 
     return () => unsubscribeAuth();
-  }, [auth, db, form]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth, db]);
 
   const chartData = progressHistory.map(entry => ({
       date: format(entry.date, "PPP", { locale: ptBR }),
@@ -191,7 +199,8 @@ export function ProgressTracker() {
         title: "Sucesso!",
         description: "Seu progresso foi registrado.",
       });
-      form.reset({ ...data, date: new Date() });
+      // Reset form to a new entry state
+      form.reset({ date: new Date(), weight: data.weight, bodyFat: data.bodyFat || undefined });
     } catch (error) {
       console.error("Erro ao registrar progresso: ", error);
       toast({
@@ -215,23 +224,25 @@ export function ProgressTracker() {
 
   const handleDelete = async (entryId: string) => {
     const user = auth.currentUser;
-    if (!user) return;
-    if (confirm("Tem certeza que deseja excluir este registro?")) {
-        try {
-            const progressDocRef = doc(db, "usuarios", user.uid, "progresso", entryId);
-            await deleteDoc(progressDocRef);
-            toast({
-                title: "Sucesso!",
-                description: "Registro excluído."
-            });
-        } catch (error) {
-            console.error("Erro ao excluir registro: ", error);
-            toast({
-                title: "Erro",
-                description: "Não foi possível excluir o registro.",
-                variant: "destructive"
-            });
-        }
+    if (!user) {
+        toast({ title: "Erro", description: "Usuário não encontrado.", variant: "destructive" });
+        return;
+    };
+    
+    try {
+        const progressDocRef = doc(db, "usuarios", user.uid, "progresso", entryId);
+        await deleteDoc(progressDocRef);
+        toast({
+            title: "Sucesso!",
+            description: "Registro excluído."
+        });
+    } catch (error) {
+        console.error("Erro ao excluir registro: ", error);
+        toast({
+            title: "Erro",
+            description: "Não foi possível excluir o registro.",
+            variant: "destructive"
+        });
     }
   }
 
@@ -306,7 +317,7 @@ export function ProgressTracker() {
                   <FormItem>
                     <FormLabel>Peso (kg)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.1" {...field} value={field.value ?? ""} />
+                      <Input type="number" step="0.1" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value)} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -319,7 +330,7 @@ export function ProgressTracker() {
                   <FormItem>
                     <FormLabel>Gordura Corporal (%)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.1" placeholder="Opcional" {...field} value={field.value ?? ""} />
+                      <Input type="number" step="0.1" placeholder="Opcional" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value)} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -369,7 +380,7 @@ export function ProgressTracker() {
             />
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Registrar Progresso
+              Salvar Registro
             </Button>
           </form>
         </Form>
@@ -384,6 +395,7 @@ export function ProgressTracker() {
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
+                  fontSize={12}
                 />
                  <YAxis
                   tickLine={false}
@@ -391,6 +403,7 @@ export function ProgressTracker() {
                   tickMargin={8}
                   domain={['dataMin - 2', 'dataMax + 2']}
                   width={30}
+                  fontSize={12}
                 />
                 <Tooltip
                   cursor={true}
