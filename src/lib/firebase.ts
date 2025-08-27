@@ -7,12 +7,13 @@ import { getAuth } from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "API_KEY",
-  authDomain: "AUTH_DOMAIN",
-  projectId: "PROJECT_ID",
-  storageBucket: "STORAGE_BUCKET",
-  messagingSenderId: "MESSAGING_SENDER_ID",
-  appId: "APP_ID"
+  "projectId": "vitalize-companion",
+  "appId": "1:1055635334907:web:e891cf3c8cd98cedc9725e",
+  "storageBucket": "vitalize-companion.firebasestorage.app",
+  "apiKey": "AIzaSyBKMQyszHdwTrCC0v4YXCFisSY9CcaU5Xg",
+  "authDomain": "vitalize-companion.firebaseapp.com",
+  "measurementId": "",
+  "messagingSenderId": "1055635334907"
 };
 
 // Initialize Firebase
