@@ -1,15 +1,24 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
-import { getAuth } from "firebase/auth";
-import { getFirestore, doc, setDoc, collection } from "firebase/firestore";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  collection,
+  query,
+  onSnapshot,
+  orderBy,
+  Timestamp,
+} from "firebase/firestore";
 
 import { cn } from "@/lib/utils";
 import { app } from "@/lib/firebase";
@@ -44,15 +53,12 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
+import type { User } from "firebase/auth";
 
-const chartData = [
-  { month: "Janeiro", weight: 80 },
-  { month: "Fevereiro", weight: 79 },
-  { month: "Março", weight: 79.5 },
-  { month: "Abril", weight: 78 },
-  { month: "Maio", weight: 77 },
-  { month: "Junho", weight: 76 },
-];
+type ProgressData = {
+  date: string;
+  weight: number;
+};
 
 const chartConfig = {
   weight: {
@@ -67,7 +73,7 @@ const progressFormSchema = z.object({
     z.number().positive("O peso deve ser um número positivo.")
   ),
   bodyFat: z.preprocess(
-    (a) => parseFloat(z.string().parse(a)),
+    (a) => parseFloat(z.string().optional().parse(a)),
     z.number().positive("A gordura corporal deve ser um número positivo.").optional()
   ),
   date: z.date({
@@ -79,6 +85,7 @@ type ProgressFormValues = z.infer<typeof progressFormSchema>;
 
 export function ProgressTracker() {
   const [isLoading, setIsLoading] = useState(false);
+  const [chartData, setChartData] = useState<ProgressData[]>([]);
   const { toast } = useToast();
   const auth = getAuth(app);
   const db = getFirestore(app);
@@ -87,10 +94,47 @@ export function ProgressTracker() {
     resolver: zodResolver(progressFormSchema),
     defaultValues: {
       date: new Date(),
-      weight: 76,
-      bodyFat: 18.5,
     },
   });
+
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user: User | null) => {
+      if (user) {
+        const userProgressRef = collection(db, "usuarios", user.uid, "progresso");
+        const q = query(userProgressRef, orderBy("date", "asc"));
+
+        const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+          const data = snapshot.docs.map((doc) => {
+            const docData = doc.data();
+            const date = (docData.date as Timestamp).toDate();
+            return {
+              // Format date for the chart tooltip
+              date: format(date, "PPP", { locale: ptBR }),
+              // Format date for the X-axis label
+              label: format(date, "dd/MM"),
+              weight: docData.weight,
+            };
+          });
+          setChartData(data);
+          
+          if (data.length > 0) {
+            const lastEntry = data[data.length - 1];
+            form.reset({
+                date: new Date(),
+                weight: lastEntry.weight,
+                bodyFat: doc.data().bodyFat || undefined
+            });
+          }
+        });
+
+        return () => unsubscribeSnapshot();
+      } else {
+        setChartData([]);
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, [auth, db, form]);
 
   async function onSubmit(data: ProgressFormValues) {
     const user = auth.currentUser;
@@ -112,9 +156,9 @@ export function ProgressTracker() {
       await setDoc(progressDocRef, {
         weight: data.weight,
         bodyFat: data.bodyFat || null,
-        date: data.date,
-        createdAt: new Date(),
-      });
+        date: Timestamp.fromDate(data.date),
+        createdAt: Timestamp.now(),
+      }, { merge: true });
 
       toast({
         title: "Sucesso!",
@@ -162,7 +206,7 @@ export function ProgressTracker() {
                   <FormItem>
                     <FormLabel>Gordura Corporal (%)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.1" {...field} />
+                      <Input type="number" step="0.1" placeholder="Opcional" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -218,24 +262,24 @@ export function ProgressTracker() {
         </Form>
         <div className="mt-6">
           <ChartContainer config={chartConfig} className="h-[200px] w-full">
-            <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+            <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
               <CartesianGrid vertical={false} />
               <XAxis
-                dataKey="month"
+                dataKey="label"
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                tickFormatter={(value) => value.slice(0, 3)}
               />
                <YAxis
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
                 domain={['dataMin - 2', 'dataMax + 2']}
+                width={30}
               />
               <Tooltip
-                cursor={false}
-                content={<ChartTooltipContent indicator="dot" />}
+                cursor={true}
+                content={<ChartTooltipContent indicator="dot" labelKey="date" />}
               />
               <Line
                 dataKey="weight"
@@ -256,3 +300,4 @@ export function ProgressTracker() {
     </Card>
   );
 }
+
