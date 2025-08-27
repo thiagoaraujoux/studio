@@ -3,18 +3,22 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  // A verificação de sessão foi desativada temporariamente.
-  // const session = request.cookies.get('session');
+  const session = request.cookies.get('session');
 
-  // // Se não houver sessão e o usuário tentar acessar qualquer página exceto /login, redirecione para /login
-  // if (!session && request.nextUrl.pathname !== '/login') {
-  //   return NextResponse.redirect(new URL('/login', request.url));
-  // }
+  const { pathname } = request.nextUrl;
 
-  // // Se houver uma sessão e o usuário tentar acessar /login, redirecione para a página inicial
-  // if (session && request.nextUrl.pathname === '/login') {
-  //    return NextResponse.redirect(new URL('/', request.url));
-  // }
+  // Rotas públicas que não exigem autenticação
+  const publicPaths = ['/login', '/quiz'];
+
+  // Se não houver sessão e o usuário tentar acessar uma página protegida
+  if (!session && !publicPaths.includes(pathname)) {
+    return NextResponse.redirect(new URL('/quiz', request.url));
+  }
+
+  // Se houver uma sessão e o usuário tentar acessar /login ou /quiz, redirecione para o dashboard
+  if (session && publicPaths.includes(pathname)) {
+     return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
 
   return NextResponse.next();
 }
