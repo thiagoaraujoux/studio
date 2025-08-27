@@ -33,40 +33,11 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  const handleAuthSuccess = async (user: User) => {
-    // Garante que o usuário do Google seja salvo no Firestore na primeira vez.
-    if (user.providerData.some(p => p.providerId === GoogleAuthProvider.PROVIDER_ID)) {
-      await saveUserToFirestore(user);
-    }
-
-    const idToken = await user.getIdToken();
-    const response = await fetch("/api/auth/session", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${idToken}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: "Falha ao criar a sessão do servidor." }));
-      // Lança o erro com a mensagem do servidor para ser capturado no bloco catch.
-      throw new Error(errorData.message || "Falha ao criar a sessão do servidor.");
-    }
-    
-    toast({
-        title: `Bem-vindo(a) de volta!`,
-        description: "Login realizado com sucesso.",
-    });
-
-    router.push("/");
-  };
-  
   const saveUserToFirestore = async (user: User) => {
     const userRef = doc(db, "usuarios", user.uid);
     const docSnap = await getDoc(userRef);
@@ -82,28 +53,55 @@ export default function LoginPage() {
     }
   };
 
-  const handleSignUp = async () => {
+  const createSession = async (user: User) => {
+    await saveUserToFirestore(user);
+    const idToken = await user.getIdToken();
+    const response = await fetch("/api/auth/session", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: "Falha ao criar a sessão do servidor." }));
+      throw new Error(errorData.message || "Falha ao criar a sessão do servidor.");
+    }
+  };
+  
+  const handleAuth = async (authFunction: Promise<User>) => {
     setIsLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      // Salva o novo usuário no Firestore e então lida com o sucesso da autenticação
-      await saveUserToFirestore(userCredential.user);
-      await handleAuthSuccess(userCredential.user);
-    } catch (error: any) {
-        let description = "Ocorreu um erro desconhecido. Tente novamente.";
-        if (error.code) {
-            if (error.code === 'auth/email-already-in-use') {
-                description = "Este e-mail já está em uso por outra conta.";
-            } else if (error.code === 'auth/weak-password') {
-                description = "A senha é muito fraca. Por favor, escolha uma senha mais forte.";
-            } else {
-                description = error.message;
-            }
-        } else {
-             description = error.message;
-        }
+      const user = await authFunction;
+      await createSession(user);
       toast({
-        title: "Erro ao Criar Conta",
+        title: `Bem-vindo(a)!`,
+        description: "Login realizado com sucesso.",
+      });
+      router.push("/");
+    } catch (error: any) {
+      let description = "Ocorreu um erro desconhecido. Tente novamente.";
+      if (error.code) { // Erros do Firebase
+        switch (error.code) {
+          case 'auth/user-not-found':
+          case 'auth/wrong-password':
+          case 'auth/invalid-credential':
+            description = "Email ou senha inválidos. Por favor, verifique e tente novamente.";
+            break;
+          case 'auth/email-already-in-use':
+            description = "Este e-mail já está em uso por outra conta.";
+            break;
+          case 'auth/weak-password':
+            description = "A senha é muito fraca. Por favor, escolha uma senha mais forte.";
+            break;
+          default:
+            description = error.message;
+        }
+      } else { // Erros da nossa API de sessão ou outros
+        description = error.message;
+      }
+      toast({
+        title: "Falha na Autenticação",
         description: description,
         variant: "destructive",
       });
@@ -112,57 +110,27 @@ export default function LoginPage() {
     }
   };
 
-  const handleLogin = async () => {
-    setIsLoading(true);
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      await handleAuthSuccess(userCredential.user);
-    } catch (error: any) {
-        let description = "Ocorreu um erro desconhecido. Tente novamente.";
-        if (error.code) {
-             if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-                description = "Email ou senha inválidos. Por favor, verifique e tente novamente.";
-            } else {
-                 description = error.message;
-            }
-        } else {
-             description = error.message;
-        }
-      toast({
-        title: "Erro de Autenticação",
-        description: description,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const handleLogin = () => {
+    handleAuth(signInWithEmailAndPassword(auth, email, password).then(res => res.user));
   };
-
-  const handleGoogleSignIn = async () => {
-    setIsGoogleLoading(true);
+  
+  const handleSignUp = () => {
+    handleAuth(createUserWithEmailAndPassword(auth, email, password).then(res => res.user));
+  };
+  
+  const handleGoogleSignIn = () => {
     const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      await handleAuthSuccess(result.user);
-    } catch (error: any) {
-      toast({
-        title: "Erro com Google Sign-In",
-        description: error.message || "Não foi possível fazer login com o Google. Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGoogleLoading(false);
-    }
+    handleAuth(signInWithPopup(auth, provider).then(res => res.user));
   };
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background">
-        <div className="flex items-center gap-2 mb-4">
-            <HeartPulse className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                Companheiro Vitalize
-            </h1>
-        </div>
+      <div className="flex items-center gap-2 mb-4">
+        <HeartPulse className="h-8 w-8 text-primary" />
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+          Companheiro Vitalize
+        </h1>
+      </div>
       <Tabs defaultValue="login" className="w-[400px]">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="login">Entrar</TabsTrigger>
@@ -185,6 +153,7 @@ export default function LoginPage() {
                   placeholder="m@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -194,16 +163,17 @@ export default function LoginPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
               <Button onClick={handleLogin} className="w-full" disabled={isLoading}>
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Entrar
               </Button>
-               <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isGoogleLoading}>
-                {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FcGoogle className="mr-2 h-4 w-4" />}
+              <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FcGoogle className="mr-2 h-4 w-4" />}
                 Entrar com Google
               </Button>
             </CardFooter>
@@ -226,6 +196,7 @@ export default function LoginPage() {
                   placeholder="m@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -235,16 +206,17 @@ export default function LoginPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
               <Button onClick={handleSignUp} className="w-full" disabled={isLoading}>
-                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Criar Conta
               </Button>
-              <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isGoogleLoading}>
-                {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FcGoogle className="mr-2 h-4 w-4" />}
+              <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FcGoogle className="mr-2 h-4 w-4" />}
                 Inscrever-se com o Google
               </Button>
             </CardFooter>

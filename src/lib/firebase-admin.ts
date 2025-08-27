@@ -7,10 +7,13 @@ import admin from 'firebase-admin';
 const projectId = "vitalize-companion";
 
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
-    projectId: projectId,
-  });
+  try {
+    admin.initializeApp({
+      projectId: projectId,
+    });
+  } catch (error) {
+    console.error('Firebase admin initialization error', error);
+  }
 }
 
 export const authAdmin = admin.auth();
