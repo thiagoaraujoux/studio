@@ -27,12 +27,65 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { suggestWorkoutPlan } from "@/ai/flows/suggest-workout-plan";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const formSchema = z.object({
   equipment: z.string().min(2, "Por favor, liste pelo menos um equipamento."),
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+const renderMarkdown = (text: string) => {
+  const lines = text.split('\n');
+  const elements = [];
+  let listItems: string[] = [];
+
+  const flushList = () => {
+    if (listItems.length > 0) {
+      elements.push(
+        <ul key={elements.length} className="list-disc pl-5 space-y-1 my-2">
+          {listItems.map((item, index) => (
+            <li key={index}>{item.replace(/^\* \s*/, '')}</li>
+          ))}
+        </ul>
+      );
+      listItems = [];
+    }
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.startsWith('### ')) {
+      flushList();
+      elements.push(<h3 key={i} className="text-lg font-semibold mt-4 mb-2">{line.substring(4)}</h3>);
+      continue;
+    }
+    if (line.startsWith('## ')) {
+      flushList();
+      elements.push(<h2 key={i} className="text-xl font-bold mt-6 mb-3">{line.substring(3)}</h2>);
+      continue;
+    }
+    if (line.startsWith('# ')) {
+        flushList();
+        elements.push(<h1 key={i} className="text-2xl font-bold mt-6 mb-4">{line.substring(2)}</h1>);
+        continue;
+    }
+    if (line.startsWith('* ')) {
+      listItems.push(line.replace(/\*\*(.*?)\*\*/g, '$1')); // Remove bold for list items for now
+      continue;
+    }
+
+    flushList();
+    if (line.trim() !== '') {
+        const formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>');
+        elements.push(<p key={i} dangerouslySetInnerHTML={{ __html: formattedLine }} className="my-2" />);
+    }
+  }
+
+  flushList(); // Add any remaining list items
+  return elements;
+};
 
 export function WorkoutSuggester() {
   const [workoutPlan, setWorkoutPlan] = useState<string | null>(null);
@@ -150,9 +203,11 @@ export function WorkoutSuggester() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border bg-muted/30 p-4 whitespace-pre-wrap text-sm">
-              {workoutPlan}
-            </div>
+            <ScrollArea className="h-[300px] w-full rounded-lg border bg-muted/30 p-4">
+               <div className="text-sm prose prose-sm max-w-none">
+                {renderMarkdown(workoutPlan)}
+              </div>
+            </ScrollArea>
           </CardContent>
         </>
       )}
