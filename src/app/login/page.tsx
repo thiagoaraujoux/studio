@@ -68,6 +68,9 @@ export default function LoginPage() {
       const errorData = await response.json().catch(() => ({ message: "Falha ao criar sessão." }));
       throw new Error(errorData.message || "Falha ao criar sessão.");
     }
+
+    // Aguarda o corpo da resposta para garantir que a sessão foi criada
+    return await response.json();
   };
 
   const handleSignUp = async () => {
