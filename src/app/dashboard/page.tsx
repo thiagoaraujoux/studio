@@ -15,10 +15,8 @@ export default function DashboardPage() {
       <main className="container flex-1 py-6">
         <div className="grid auto-rows-max items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
           <div className="grid gap-6 lg:col-span-2">
-            <div className="grid gap-6 md:grid-cols-2">
-              <WorkoutSuggester />
-              <MealSuggester />
-            </div>
+            <WorkoutSuggester />
+            <MealSuggester />
             <ContentLibrary />
             <CommunityFeed />
           </div>
