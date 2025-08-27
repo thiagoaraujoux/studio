@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -25,12 +26,14 @@ const SuggestMealPlanInputSchema = z.object({
 
 export type SuggestMealPlanInput = z.infer<typeof SuggestMealPlanInputSchema>;
 
+const MealOptionSchema = z.object({
+    recipe: z.string().describe("A receita detalhada da refeição em formato markdown, incluindo modo de preparo."),
+    details: z.string().describe("Uma string descrevendo o peso total e as calorias. Ex: 'Peso: 400g, Calorias: 550kcal'"),
+});
+
 const SuggestMealPlanOutputSchema = z.object({
-  mealPlan: z
-    .string()
-    .describe(
-      'Um plano de refeições ou receitas adaptado aos ingredientes disponíveis do usuário.'
-    ),
+  lessCaloricOption: MealOptionSchema.describe("A opção de refeição com menos calorias."),
+  moreCaloricOption: MealOptionSchema.describe("A opção de refeição com mais calorias."),
 });
 
 export type SuggestMealPlanOutput = z.infer<typeof SuggestMealPlanOutputSchema>;
@@ -43,7 +46,17 @@ const prompt = ai.definePrompt({
   name: 'suggestMealPlanPrompt',
   input: {schema: SuggestMealPlanInputSchema},
   output: {schema: SuggestMealPlanOutputSchema},
-  prompt: `Você é um nutricionista e chef de cozinha. Um usuário tem os seguintes ingredientes disponíveis: {{{ingredients}}}. Sugira uma ou mais refeições saudáveis que usem principalmente esses ingredientes. Para cada refeição, liste os ingredientes necessários e forneça um modo de preparo simples. Coloque a sugestão em formato markdown.`,
+  prompt: `Você é um nutricionista e chef de cozinha. Um usuário tem os seguintes ingredientes disponíveis: {{{ingredients}}}.
+  
+  Sua tarefa é criar duas versões de uma refeição saudável usando principalmente esses ingredientes:
+  1. Uma opção com MENOS calorias, ideal para quem busca emagrecimento.
+  2. Uma opção com MAIS calorias, ideal para quem busca hipertrofia, ajustando as quantidades ou adicionando/removendo ingredientes.
+
+  Para cada uma das duas opções, você deve:
+  - Fornecer a receita completa em formato markdown, com ingredientes e modo de preparo.
+  - Estimar o peso total do prato e o total de calorias.
+
+  Retorne a resposta no formato JSON especificado.`,
 });
 
 const suggestMealPlanFlow = ai.defineFlow(
