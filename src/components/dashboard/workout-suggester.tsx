@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -63,6 +64,26 @@ export function WorkoutSuggester() {
     }
   }
 
+  // Basic markdown to HTML renderer
+  const renderMarkdown = (text: string) => {
+    const html = text
+      .split('\n')
+      .map(line => {
+        // Headings
+        if (line.startsWith('# ')) return `<h3>${line.substring(2)}</h3>`;
+        if (line.startsWith('## ')) return `<h4>${line.substring(3)}</h4>`;
+        // Bold
+        line = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        // List items
+        if (line.startsWith('* ')) return `<li>${line.substring(2)}</li>`;
+        if (line.startsWith('- ')) return `<li>${line.substring(2)}</li>`;
+        // Paragraphs
+        return line ? `<p>${line}</p>` : '<br />';
+      })
+      .join('');
+    return <div dangerouslySetInnerHTML={{ __html: html }} />;
+  };
+
   return (
     <Card className="w-full transition-all hover:shadow-lg">
       <CardHeader>
@@ -117,9 +138,9 @@ export function WorkoutSuggester() {
           </CardHeader>
           <CardContent>
             <div className="prose prose-sm max-w-none rounded-lg border bg-muted/30 p-4">
-              <pre className="whitespace-pre-wrap bg-transparent p-0 font-body text-sm text-foreground">
-                {workoutPlan}
-              </pre>
+              <div className="whitespace-pre-wrap font-body text-sm text-foreground">
+                {renderMarkdown(workoutPlan)}
+              </div>
             </div>
           </CardContent>
         </>
