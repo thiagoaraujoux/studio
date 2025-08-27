@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Wand2, Loader2 } from "lucide-react";
+import { Wand2, Loader2, Download } from "lucide-react";
 
 import {
   Card,
@@ -64,47 +64,17 @@ export function WorkoutSuggester() {
     }
   }
 
-  // Basic markdown to HTML renderer
-  const renderMarkdown = (text: string) => {
-    let listOpen = false;
-    const html = text
-      .split('\n')
-      .map(line => {
-        // Headings
-        if (line.startsWith('### ')) return `<h5>${line.substring(4)}</h5>`;
-        if (line.startsWith('## ')) return `<h4>${line.substring(3)}</h4>`;
-        if (line.startsWith('# ')) return `<h3>${line.substring(2)}</h3>`;
-        
-        // Bold
-        line = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        
-        // List items
-        if (line.startsWith('* ') || line.startsWith('- ')) {
-          let listItem = `<li>${line.substring(2)}</li>`;
-          if (!listOpen) {
-            listItem = '<ul>' + listItem;
-            listOpen = true;
-          }
-          return listItem;
-        }
-
-        // Close list if line is not a list item
-        let closingTag = '';
-        if (listOpen && !line.startsWith('* ') && !line.startsWith('- ')) {
-            closingTag = '</ul>';
-            listOpen = false;
-        }
-
-        // Paragraphs
-        const paragraph = line ? `<p>${line}</p>` : '';
-        return closingTag + paragraph;
-      })
-      .join('');
-
-    // Close any open list at the end
-    const finalHtml = listOpen ? html + '</ul>' : html;
-    
-    return <div className="prose prose-sm max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: finalHtml }} />;
+  const handleDownload = () => {
+    if (!workoutPlan) return;
+    const blob = new Blob([workoutPlan], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'plano-de-treino.txt';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -156,12 +126,16 @@ export function WorkoutSuggester() {
       </Form>
       {workoutPlan && (
         <>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Seu Treino Sugerido</CardTitle>
+            <Button variant="outline" size="sm" onClick={handleDownload}>
+              <Download className="mr-2 h-4 w-4" />
+              Baixar
+            </Button>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border bg-muted/30 p-4">
-              {renderMarkdown(workoutPlan)}
+            <div className="rounded-lg border bg-muted/30 p-4 whitespace-pre-wrap text-sm">
+              {workoutPlan}
             </div>
           </CardContent>
         </>
