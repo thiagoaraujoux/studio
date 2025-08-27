@@ -54,20 +54,42 @@ export default function LoginPage() {
     }
   };
 
-  const handleAuth = async (isLogin: boolean) => {
+  const handleSignUp = async () => {
     setIsLoading(true);
     try {
-      let userCredential;
-      if (isLogin) {
-        userCredential = await signInWithEmailAndPassword(auth, email, password);
-      } else {
-        userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        await saveUserToFirestore(userCredential.user);
-        toast({
-          title: "Conta Criada com Sucesso!",
-          description: "Seja bem-vindo(a) ao Vitalize.",
-        });
-      }
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await saveUserToFirestore(userCredential.user);
+      
+      const idToken = await userCredential.user.getIdToken();
+      await fetch("/api/auth/session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+
+      toast({
+        title: "Conta Criada com Sucesso!",
+        description: "Seja bem-vindo(a) ao Vitalize.",
+      });
+
+      router.push("/");
+    } catch (error: any) {
+      toast({
+        title: "Erro ao Criar Conta",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogin = async () => {
+    setIsLoading(true);
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const idToken = await userCredential.user.getIdToken();
       await fetch("/api/auth/session", {
         method: "POST",
@@ -80,13 +102,14 @@ export default function LoginPage() {
     } catch (error: any) {
       toast({
         title: "Erro de Autenticação",
-        description: error.message,
+        description: "Email ou senha inválidos.",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   };
+
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
@@ -157,7 +180,7 @@ export default function LoginPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-              <Button onClick={() => handleAuth(true)} className="w-full" disabled={isLoading}>
+              <Button onClick={handleLogin} className="w-full" disabled={isLoading}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Entrar
               </Button>
@@ -198,7 +221,7 @@ export default function LoginPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-              <Button onClick={() => handleAuth(false)} className="w-full" disabled={isLoading}>
+              <Button onClick={handleSignUp} className="w-full" disabled={isLoading}>
                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Criar Conta
               </Button>
@@ -213,3 +236,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    
