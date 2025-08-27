@@ -22,8 +22,6 @@ import {
   getDoc,
 } from "firebase/firestore";
 import Link from 'next/link';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, Dot } from "recharts";
-
 
 import { cn } from "@/lib/utils";
 import { app } from "@/lib/firebase";
@@ -65,7 +63,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { User as FirebaseUser } from "firebase/auth";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChartConfig, ChartContainer } from "../ui/chart";
 
 type ProgressEntry = {
     id: string; // Document ID (e.g., "2024-07-29")
@@ -90,49 +87,10 @@ const progressFormSchema = z.object({
 
 type ProgressFormValues = z.infer<typeof progressFormSchema>;
 
-
-const chartConfig = {
-    weight: { label: "Peso", color: "hsl(var(--chart-1))", icon: Weight },
-    imc: { label: "IMC", color: "hsl(var(--muted-foreground))", icon: AreaChart },
-    leanMass: { label: "Massa Magra", color: "hsl(var(--chart-2))", icon: BarChart },
-    bodyFat: { label: "Gordura Corporal", color: "hsl(var(--chart-4))", icon: Percent },
-} satisfies ChartConfig;
-
-const getBmiCategoryColor = (imc: number | null) => {
-    if (imc === null) return 'hsl(var(--muted-foreground))';
-    if (imc < 18.5) return 'hsl(210 90% 60%)';
-    if (imc < 25) return 'hsl(120 60% 47%)';
-    if (imc < 30) return 'hsl(48 95% 50%)';
-    return 'hsl(var(--destructive))';
-};
-
-const CustomTooltipContent = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    const data = payload[0];
-    const value = data.value?.toFixed(1);
-    const unit = data.name === 'Gordura Corporal (%)' ? '%' : 'kg';
-    
-    return (
-      <div className="rounded-lg border bg-background p-2 shadow-sm">
-        <div className="grid grid-cols-1 gap-1.5">
-          <p className="text-muted-foreground text-sm">{label}</p>
-          <p className="font-bold text-base" style={{ color: data.stroke }}>
-            {value} {data.name.includes('IMC') ? '' : unit}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return null;
-};
-
-
 export function ProgressTracker() {
   const [isLoading, setIsLoading] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [progressHistory, setProgressHistory] = useState<ProgressEntry[]>([]);
-  const [height, setHeight] = useState<number | null>(null);
   const { toast } = useToast();
   const auth = getAuth(app);
   const db = getFirestore(app);
@@ -149,12 +107,6 @@ export function ProgressTracker() {
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user: FirebaseUser | null) => {
       if (user) {
-        const userRef = doc(db, "usuarios", user.uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists() && userSnap.data().height) {
-            setHeight(userSnap.data().height);
-        }
-
         const userProgressRef = collection(db, "usuarios", user.uid, "progresso");
         const q = query(userProgressRef, orderBy("date", "asc"));
 
@@ -276,95 +228,11 @@ export function ProgressTracker() {
         });
     }
   }
-
-  const chartDataWeight = progressHistory.map(entry => ({ date: format(entry.date, "PPP", { locale: ptBR }), label: format(entry.date, "dd/MM"), value: entry.weight }));
-  const chartDataBmi = height ? progressHistory.map(entry => ({ date: format(entry.date, "PPP", { locale: ptBR }), label: format(entry.date, "dd/MM"), value: parseFloat((entry.weight / (height * height)).toFixed(2)) })) : [];
-  const chartDataLeanMass = progressHistory.filter(e => e.bodyFat).map(entry => ({ date: format(entry.date, "PPP", { locale: ptBR }), label: format(entry.date, "dd/MM"), value: parseFloat((entry.weight * (1 - entry.bodyFat! / 100)).toFixed(1)) }));
-  const chartDataBodyFat = progressHistory.filter(e => e.bodyFat).map(entry => ({ date: format(entry.date, "PPP", { locale: ptBR }), label: format(entry.date, "dd/MM"), value: entry.bodyFat }));
-
-  const getChartDomain = (data: { value?: number }[]) => {
-    if (data.length === 0) return [0, 100];
-    const values = data.map(d => d.value).filter(v => v !== undefined) as number[];
-    if (values.length === 0) return [0, 100];
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    if (min === max) return [min > 5 ? min - 5 : 0, max + 5];
-    const padding = (max - min) * 0.1;
-    return [Math.max(0, min - padding), max + padding];
-  };
-
-  const yDomainWeight = getChartDomain(chartDataWeight);
-  const yDomainBmi = getChartDomain(chartDataBmi);
-  const yDomainLeanMass = getChartDomain(chartDataLeanMass);
-  const yDomainBodyFat = getChartDomain(chartDataBodyFat);
-
-  const ColoredDot = (props: any) => {
-    const { cx, cy, payload } = props;
-    const color = getBmiCategoryColor(payload.value);
-    return <Dot cx={cx} cy={cy} r={4} fill={color} stroke="#fff" strokeWidth={1} />;
-  };
-
-  const renderChart = (type: 'weight' | 'imc' | 'leanMass' | 'bodyFat') => {
-    let data, domain, name, color, dot, isBmi = false;
-    
-    switch (type) {
-        case 'imc':
-            if (!height) return <div className="h-[200px] flex items-center justify-center text-center text-muted-foreground p-4">Informe sua altura na página de perfil para ver o IMC.</div>;
-            data = chartDataBmi;
-            domain = yDomainBmi;
-            name = "IMC";
-            color = chartConfig.imc.color;
-            dot = <ColoredDot />;
-            isBmi = true;
-            break;
-        case 'leanMass':
-            if (chartDataLeanMass.length === 0) return <div className="h-[200px] flex items-center justify-center text-center text-muted-foreground p-4">Registre a gordura corporal para ver a massa magra.</div>;
-            data = chartDataLeanMass;
-            domain = yDomainLeanMass;
-            name = "Massa Magra (kg)";
-            color = chartConfig.leanMass.color;
-            break;
-        case 'bodyFat':
-            if (chartDataBodyFat.length === 0) return <div className="h-[200px] flex items-center justify-center text-center text-muted-foreground p-4">Registre a gordura corporal para ver sua evolução.</div>;
-            data = chartDataBodyFat;
-            domain = yDomainBodyFat;
-            name = "Gordura Corporal (%)";
-            color = chartConfig.bodyFat.color;
-            break;
-        default:
-            data = chartDataWeight;
-            domain = yDomainWeight;
-            name = "Peso (kg)";
-            color = chartConfig.weight.color;
-    }
-    if (data.length === 0) return <div className="h-[200px] flex items-center justify-center text-center text-muted-foreground p-4">Registre seu progresso para ver a evolução.</div>;
-
-
-    return (
-        <ChartContainer config={chartConfig} className="h-[200px] w-full">
-            <LineChart data={data} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={10} />
-                <YAxis type="number" domain={domain} hide={true} />
-                <Tooltip cursor={true} content={<CustomTooltipContent />} />
-                {isBmi && (
-                    <>
-                        <ReferenceArea y1={domain[0]} y2={18.5} fill="hsl(210 90% 60% / 0.1)" stroke="hsl(210 90% 60% / 0.2)" strokeDasharray="3 3" />
-                        <ReferenceArea y1={18.5} y2={24.9} fill="hsl(120 60% 47% / 0.1)" stroke="hsl(120 60% 47% / 0.2)" strokeDasharray="3 3" />
-                        <ReferenceArea y1={25} y2={29.9} fill="hsl(48 95% 50% / 0.1)" stroke="hsl(48 95% 50% / 0.2)" strokeDasharray="3 3" />
-                        <ReferenceArea y1={30} y2={domain[1]} fill="hsl(var(--destructive) / 0.1)" stroke="hsl(var(--destructive) / 0.2)" strokeDasharray="3 3" />
-                    </>
-                )}
-                <Line dataKey="value" type="natural" stroke={color} strokeWidth={2} dot={dot || { r: 3 }} activeDot={{ r: 6 }} name={name} />
-            </LineChart>
-        </ChartContainer>
-    );
-  };
   
   return (
     <Card className="transition-all hover:shadow-lg">
         <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row items-start justify-between">
                 <div className="grid gap-0.5">
                     <CardTitle>Acompanhamento de Progresso</CardTitle>
                     <CardDescription>Registre seu peso e veja sua evolução.</CardDescription>
@@ -515,42 +383,6 @@ export function ProgressTracker() {
             </Button>
           </form>
         </Form>
-      </CardContent>
-      <CardHeader className="pt-4 pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-                <LineChartIcon className="h-5 w-5" />
-                Sua Evolução
-            </CardTitle>
-      </CardHeader>
-      <CardContent className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-2">
-         <div>
-            <div className="flex items-center gap-2 mb-2 ml-1">
-                <Weight className="h-4 w-4 text-muted-foreground"/>
-                <h4 className="font-semibold text-sm">Peso (kg)</h4>
-            </div>
-            {renderChart('weight')}
-         </div>
-         <div>
-            <div className="flex items-center gap-2 mb-2 ml-1">
-                <AreaChart className="h-4 w-4 text-muted-foreground"/>
-                <h4 className="font-semibold text-sm">IMC</h4>
-            </div>
-            {renderChart('imc')}
-         </div>
-         <div>
-            <div className="flex items-center gap-2 mb-2 ml-1">
-                <BarChart className="h-4 w-4 text-muted-foreground"/>
-                <h4 className="font-semibold text-sm">Massa Magra (kg)</h4>
-            </div>
-            {renderChart('leanMass')}
-         </div>
-         <div>
-            <div className="flex items-center gap-2 mb-2 ml-1">
-                <Percent className="h-4 w-4 text-muted-foreground"/>
-                <h4 className="font-semibold text-sm">Gordura Corporal (%)</h4>
-            </div>
-            {renderChart('bodyFat')}
-         </div>
       </CardContent>
     </Card>
   );
