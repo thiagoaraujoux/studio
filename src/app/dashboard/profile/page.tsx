@@ -8,7 +8,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { getAuth, updateProfile, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import type { User } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, collection, query, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,8 +26,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { app, db } from "@/lib/firebase";
-import { Loader2, KeyRound, User as UserIcon, Image as ImageIcon } from "lucide-react";
+import { Loader2, KeyRound, User as UserIcon, HeartPulse, AreaChart } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
 
 const profileFormSchema = z.object({
   displayName: z.string().min(2, "O nome deve ter pelo menos 2 caracteres.").optional(),
@@ -40,14 +44,36 @@ const passwordFormSchema = z.object({
   path: ["confirmPassword"],
 });
 
+const healthFormSchema = z.object({
+    height: z.preprocess(
+        (a) => parseFloat(z.string().parse(a)),
+        z.number().positive("A altura deve ser um número positivo em metros (ex: 1.75).")
+    ),
+});
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 type PasswordFormValues = z.infer<typeof passwordFormSchema>;
+type HealthFormValues = z.infer<typeof healthFormSchema>;
+
+type ProgressEntry = {
+    date: Date;
+    weight: number;
+};
+
+const chartConfig = {
+  imc: {
+    label: "IMC",
+    color: "hsl(var(--primary))",
+  },
+} satisfies ChartConfig;
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
+  const [isHealthLoading, setIsHealthLoading] = useState(false);
+  const [progressHistory, setProgressHistory] = useState<ProgressEntry[]>([]);
+  const [height, setHeight] = useState<number | null>(null);
   const router = useRouter();
   const { toast } = useToast();
   const auth = getAuth(app);
@@ -60,20 +86,43 @@ export default function ProfilePage() {
     resolver: zodResolver(passwordFormSchema),
   });
 
+  const healthForm = useForm<HealthFormValues>({
+    resolver: zodResolver(healthFormSchema),
+  });
+
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
         profileForm.reset({
           displayName: currentUser.displayName || "",
           photoURL: currentUser.photoURL || "",
         });
+
+        const userRef = doc(db, "usuarios", currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists() && userSnap.data().height) {
+            const userHeight = userSnap.data().height;
+            setHeight(userHeight);
+            healthForm.reset({ height: userHeight });
+        }
+
+        const userProgressRef = collection(db, "usuarios", currentUser.uid, "progresso");
+        const q = query(userProgressRef, orderBy("date", "asc"));
+        const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs.map(doc => ({
+                date: (doc.data().date as Timestamp).toDate(),
+                weight: doc.data().weight,
+            }));
+            setProgressHistory(data);
+        });
+        return () => unsubscribeSnapshot();
       } else {
         router.push("/login");
       }
     });
     return () => unsubscribe();
-  }, [auth, router, profileForm]);
+  }, [auth, router, profileForm, healthForm]);
 
   const handleProfileUpdate: SubmitHandler<ProfileFormValues> = async (data) => {
     if (!user) return;
@@ -85,7 +134,6 @@ export default function ProfilePage() {
         photoURL: data.photoURL,
       });
 
-      // Also update in firestore
       const userRef = doc(db, "usuarios", user.uid);
       await setDoc(userRef, { 
         displayName: data.displayName, 
@@ -135,7 +183,39 @@ export default function ProfilePage() {
       setIsPasswordLoading(false);
     }
   };
-  
+
+  const handleHealthUpdate: SubmitHandler<HealthFormValues> = async (data) => {
+    if (!user) return;
+
+    setIsHealthLoading(true);
+    try {
+        const userRef = doc(db, "usuarios", user.uid);
+        await setDoc(userRef, { height: data.height }, { merge: true });
+        setHeight(data.height);
+        toast({
+            title: "Sucesso!",
+            description: "Sua altura foi atualizada.",
+        });
+    } catch (error: any) {
+        toast({
+            title: "Erro ao Salvar Altura",
+            description: error.message,
+            variant: "destructive",
+        });
+    } finally {
+        setIsHealthLoading(false);
+    }
+  };
+
+  const lastWeight = progressHistory.length > 0 ? progressHistory[progressHistory.length - 1].weight : null;
+  const currentBmi = height && lastWeight ? (lastWeight / (height * height)).toFixed(2) : null;
+
+  const bmiChartData = height ? progressHistory.map(entry => ({
+    date: format(entry.date, "PPP", { locale: ptBR }),
+    label: format(entry.date, "dd/MM"),
+    imc: parseFloat((entry.weight / (height * height)).toFixed(2)),
+  })) : [];
+
   if (!user) {
     return (
         <div className="flex h-screen items-center justify-center">
@@ -177,6 +257,64 @@ export default function ProfilePage() {
               </Button>
             </CardFooter>
           </form>
+        </Card>
+        
+        <Card>
+            <CardHeader>
+                <div className="flex items-center gap-3">
+                    <HeartPulse className="h-6 w-6 text-primary" />
+                    <div>
+                        <CardTitle>Informações de Saúde</CardTitle>
+                        <CardDescription>Gerencie suas informações de saúde para um melhor acompanhamento.</CardDescription>
+                    </div>
+                </div>
+            </CardHeader>
+            <form onSubmit={healthForm.handleSubmit(handleHealthUpdate)}>
+                <CardContent className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <div className="space-y-2">
+                            <Label htmlFor="height">Altura (m)</Label>
+                            <Input id="height" type="number" step="0.01" placeholder="Ex: 1.75" {...healthForm.register("height")} />
+                            {healthForm.formState.errors.height && <p className="text-sm font-medium text-destructive">{healthForm.formState.errors.height.message}</p>}
+                        </div>
+                         <div className="space-y-2">
+                            <Label>Peso Atual</Label>
+                            <Input value={lastWeight ? `${lastWeight.toFixed(1)} kg` : "N/A"} disabled />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>IMC Atual</Label>
+                            <Input value={currentBmi || "N/A"} disabled />
+                        </div>
+                    </div>
+                     <div className="mt-6">
+                        <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                            <AreaChart className="h-5 w-5" />
+                            Gráfico de Evolução do IMC
+                        </h3>
+                        {bmiChartData.length > 0 ? (
+                            <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                            <LineChart data={bmiChartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
+                                <CartesianGrid vertical={false} />
+                                <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
+                                <YAxis tickLine={false} axisLine={false} tickMargin={8} domain={['dataMin - 2', 'dataMax + 2']} width={30} fontSize={12}/>
+                                <Tooltip cursor={true} content={<ChartTooltipContent indicator="dot" labelKey="date" />} />
+                                <Line dataKey="imc" type="natural" stroke="var(--color-imc)" strokeWidth={2} dot={{ fill: "var(--color-imc)" }} activeDot={{ r: 6 }} />
+                            </LineChart>
+                            </ChartContainer>
+                        ) : (
+                            <div className="flex items-center justify-center h-[200px] bg-muted/50 rounded-lg">
+                            <p className="text-muted-foreground text-center">Informe sua altura e registre seu peso para ver a evolução do IMC.</p>
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button type="submit" disabled={isHealthLoading}>
+                        {isHealthLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Salvar Altura
+                    </Button>
+                </CardFooter>
+            </form>
         </Card>
 
         <Card>

@@ -88,7 +88,7 @@ const progressFormSchema = z.object({
     z.number().positive("O peso deve ser um número positivo.")
   ),
   bodyFat: z.preprocess(
-    (val) => (val === "" ? null : parseFloat(String(val))),
+    (val) => (String(val).trim() === "" ? null : parseFloat(String(val))),
     z.number().positive("A gordura corporal deve ser um número positivo.").nullable().optional()
   ),
   date: z.date({
@@ -433,5 +433,3 @@ export function ProgressTracker() {
     </Card>
   );
 }
-
-    
