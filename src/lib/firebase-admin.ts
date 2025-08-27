@@ -1,16 +1,15 @@
 
 import admin from 'firebase-admin';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
 
-const projectId = "vitalize-companion";
+// Importa as credenciais da conta de serviço do arquivo JSON
+import serviceAccount from '../../vitalize-companion-firebase-adminsdk.json';
 
-if (!admin.apps.length) {
+if (!getApps().length) {
   try {
-    // A inicialização simplificada, apenas com o projectId, permite que o SDK 
-    // use as Credenciais Padrão da Aplicação (ADC) do ambiente de desenvolvimento.
-    // Isso resolve o erro "failed to fetch a valid Google OAuth2 access token" 
-    // e também garante que o servidor valide os tokens para o projeto correto ("vitalize-companion").
-    admin.initializeApp({
-      projectId: projectId,
+    // Inicializa o SDK do Firebase Admin com as credenciais da conta de serviço
+    initializeApp({
+      credential: cert(serviceAccount),
     });
   } catch (error) {
     console.error('Firebase admin initialization error', error);
