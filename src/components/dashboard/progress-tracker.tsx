@@ -22,9 +22,11 @@ import {
   getDoc,
 } from "firebase/firestore";
 import Link from 'next/link';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, Dot } from "recharts";
+
 
 import { cn } from "@/lib/utils";
-import { app } from "@/lib/firebase";
+import { app, db } from "@/lib/firebase";
 import {
   Card,
   CardContent,
@@ -63,6 +65,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { User as FirebaseUser } from "firebase/auth";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChartContainer } from "@/components/ui/chart";
 
 type ProgressEntry = {
     id: string; // Document ID (e.g., "2024-07-29")
@@ -87,13 +90,43 @@ const progressFormSchema = z.object({
 
 type ProgressFormValues = z.infer<typeof progressFormSchema>;
 
+const getBmiCategoryColor = (imc: number | null) => {
+    if (imc === null) return 'hsl(var(--muted-foreground))';
+    if (imc < 18.5) return 'hsl(210 90% 60%)';
+    if (imc < 25) return 'hsl(120 60% 47%)';
+    if (imc < 30) return 'hsl(48 95% 50%)';
+    return 'hsl(var(--destructive))';
+};
+
+const CustomTooltipContent = ({ active, payload, label, chartType }: { active?: boolean; payload?: any[]; label?: string, chartType: string }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    const value = data.value?.toFixed(1);
+    let unit = "kg";
+    if (chartType === 'imc') unit = '';
+    if (chartType === 'bodyFat') unit = '%';
+
+    return (
+      <div className="rounded-lg border bg-background p-2 shadow-sm">
+        <div className="grid grid-cols-1 gap-1.5">
+          <p className="text-muted-foreground text-sm">{label}</p>
+          <p className="font-bold text-base" style={{ color: payload[0].stroke }}>
+            {value} {unit}
+          </p>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 export function ProgressTracker() {
   const [isLoading, setIsLoading] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [progressHistory, setProgressHistory] = useState<ProgressEntry[]>([]);
+  const [height, setHeight] = useState<number | null>(null);
   const { toast } = useToast();
   const auth = getAuth(app);
-  const db = getFirestore(app);
 
   const form = useForm<ProgressFormValues>({
     resolver: zodResolver(progressFormSchema),
@@ -107,6 +140,12 @@ export function ProgressTracker() {
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user: FirebaseUser | null) => {
       if (user) {
+        const userRef = doc(db, "usuarios", user.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists() && userSnap.data().height) {
+            setHeight(userSnap.data().height);
+        }
+
         const userProgressRef = collection(db, "usuarios", user.uid, "progresso");
         const q = query(userProgressRef, orderBy("date", "asc"));
 
@@ -122,20 +161,6 @@ export function ProgressTracker() {
           });
           setProgressHistory(data);
           
-          if (data.length > 0 && !form.formState.isDirty) {
-            const lastEntry = data[data.length - 1];
-            form.reset({
-                date: new Date(),
-                weight: lastEntry.weight,
-                bodyFat: lastEntry.bodyFat || undefined
-            });
-          } else if (data.length === 0) {
-            form.reset({
-                date: new Date(),
-                weight: undefined,
-                bodyFat: undefined
-            });
-          }
         }, (error) => {
           console.error("Erro ao buscar histórico de progresso:", error);
           toast({
@@ -153,7 +178,7 @@ export function ProgressTracker() {
 
     return () => unsubscribeAuth();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth, db]);
+  }, [auth]);
   
   async function onSubmit(data: ProgressFormValues) {
     const user = auth.currentUser;
@@ -196,15 +221,6 @@ export function ProgressTracker() {
     }
   }
 
-  const handleEdit = (entry: ProgressEntry) => {
-    form.reset({
-        date: entry.date,
-        weight: entry.weight,
-        bodyFat: entry.bodyFat || undefined,
-    });
-    setIsHistoryOpen(false);
-  }
-
   const handleDelete = async (entryId: string) => {
     const user = auth.currentUser;
     if (!user) {
@@ -228,6 +244,61 @@ export function ProgressTracker() {
         });
     }
   }
+
+  const chartDataWeight = progressHistory.map(entry => ({ date: format(entry.date, "PPP", { locale: ptBR }), label: format(entry.date, "dd/MM"), value: entry.weight }));
+  const chartDataBmi = height ? progressHistory.map(entry => ({ date: format(entry.date, "PPP", { locale: ptBR }), label: format(entry.date, "dd/MM"), value: parseFloat((entry.weight / (height * height)).toFixed(2)) })) : [];
+  const chartDataLeanMass = progressHistory.filter(entry => entry.bodyFat && entry.bodyFat > 0).map(entry => ({ date: format(entry.date, "PPP", { locale: ptBR }), label: format(entry.date, "dd/MM"), value: parseFloat((entry.weight * (1 - entry.bodyFat! / 100)).toFixed(1)) }));
+  const chartDataBodyFat = progressHistory.filter(entry => entry.bodyFat && entry.bodyFat > 0).map(entry => ({ date: format(entry.date, "PPP", { locale: ptBR }), label: format(entry.date, "dd/MM"), value: entry.bodyFat }));
+
+  const getChartDomain = (data: { value?: number | null }[]) => {
+    const values = data.map(d => d.value).filter((v): v is number => v !== null && v !== undefined);
+    if (values.length === 0) return [0, 100];
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    if (min === max) return [min > 5 ? min - 5 : 0, max + 5];
+    const padding = (max - min) * 0.15;
+    return [Math.max(0, min - padding), max + padding];
+  };
+
+  const yDomainWeight = getChartDomain(chartDataWeight);
+  const yDomainBmi = getChartDomain(chartDataBmi);
+  const yDomainLeanMass = getChartDomain(chartDataLeanMass);
+  const yDomainBodyFat = getChartDomain(chartDataBodyFat);
+
+  const BmiDot = (props: any) => {
+    const { cx, cy, payload } = props;
+    if (!payload?.value) return <Dot cx={cx} cy={cy} r={3} fill="hsl(var(--chart-1))" stroke="var(--background)" strokeWidth={1} />;
+    const color = getBmiCategoryColor(payload.value);
+    return <Dot cx={cx} cy={cy} r={4} fill={color} stroke="#fff" strokeWidth={1} />;
+  };
+
+  const renderChart = (data: any[], yDomain: number[], color: string, chartType: string, customDot?: React.ReactElement) => {
+      const chartConfig = {[chartType]: {label: chartType, color}};
+      if (chartType === 'imc' && !height) return <div className="flex items-center justify-center h-[200px] bg-muted/50 rounded-lg text-center p-4"><p className="text-sm text-muted-foreground">Informe sua altura no <Link href="/dashboard/profile" className="underline text-primary">perfil</Link> para ver o IMC.</p></div>;
+      if ((chartType === 'leanMass' || chartType === 'bodyFat') && data.length === 0) return <div className="flex items-center justify-center h-[200px] bg-muted/50 rounded-lg text-center p-4"><p className="text-sm text-muted-foreground">Registre % de gordura corporal para ver esta evolução.</p></div>;
+      if (data.length === 0) return <div className="flex items-center justify-center h-[200px] bg-muted/50 rounded-lg text-center p-4"><p className="text-sm text-muted-foreground">Registre seu progresso para ver a evolução.</p></div>;
+
+      return (
+          <ChartContainer config={chartConfig} className="h-[200px] w-full">
+              <LineChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 20 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
+                  <YAxis type="number" domain={yDomain} hide={true} />
+                  <Tooltip cursor={true} content={<CustomTooltipContent chartType={chartType} />} />
+                  
+                  {chartType === 'imc' && (
+                      <>
+                          <ReferenceArea y1={yDomain[0]} y2={18.5} fill="hsl(210 90% 60% / 0.1)" stroke="hsl(210 90% 60% / 0.2)" strokeDasharray="3 3" />
+                          <ReferenceArea y1={18.5} y2={24.9} fill="hsl(120 60% 47% / 0.1)" stroke="hsl(120 60% 47% / 0.2)" strokeDasharray="3 3" />
+                          <ReferenceArea y1={25} y2={29.9} fill="hsl(48 95% 50% / 0.1)" stroke="hsl(48 95% 50% / 0.2)" strokeDasharray="3 3" />
+                          <ReferenceArea y1={30} y2={yDomain[1]} fill="hsl(var(--destructive) / 0.1)" stroke="hsl(var(--destructive) / 0.2)" strokeDasharray="3 3" />
+                      </>
+                  )}
+                  <Line dataKey="value" type="natural" stroke={color} strokeWidth={2} dot={customDot || <Dot r={3} />} activeDot={{ r: 6 }} name={chartType} />
+              </LineChart>
+          </ChartContainer>
+      );
+  };
   
   return (
     <Card className="transition-all hover:shadow-lg">
@@ -244,11 +315,11 @@ export function ProgressTracker() {
                     </Button>
                 </DialogTrigger>
             </CardHeader>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-xl">
                 <DialogHeader>
                     <DialogTitle>Histórico de Progresso</DialogTitle>
                     <DialogDescription>
-                        Aqui estão todos os seus registros. Você pode editar ou excluir qualquer entrada.
+                        Aqui estão todos os seus registros. Você pode excluir qualquer entrada.
                     </DialogDescription>
                 </DialogHeader>
                 <ScrollArea className="h-[300px] pr-4">
@@ -262,16 +333,12 @@ export function ProgressTracker() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                        {progressHistory.slice().reverse().map((entry) => (
+                        {progressHistory.length > 0 ? progressHistory.slice().reverse().map((entry) => (
                             <TableRow key={entry.id}>
                                 <TableCell>{format(entry.date, "dd/MM/yyyy")}</TableCell>
                                 <TableCell className="text-right">{entry.weight.toFixed(1)}</TableCell>
                                 <TableCell className="text-right">{entry.bodyFat ? entry.bodyFat.toFixed(1) : "N/A"}</TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" onClick={() => handleEdit(entry)}>
-                                        <Pencil className="h-4 w-4" />
-                                        <span className="sr-only">Editar</span>
-                                    </Button>
                                     <Dialog>
                                         <DialogTrigger asChild>
                                              <Button variant="ghost" size="icon">
@@ -294,7 +361,13 @@ export function ProgressTracker() {
                                     </Dialog>
                                 </TableCell>
                             </TableRow>
-                        ))}
+                        )): (
+                            <TableRow>
+                                <TableCell colSpan={4} className="h-24 text-center">
+                                    Nenhum registro encontrado.
+                                </TableCell>
+                            </TableRow>
+                        )}
                         </TableBody>
                     </Table>
                 </ScrollArea>
@@ -305,7 +378,7 @@ export function ProgressTracker() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-      <CardContent className="pt-6">
+      <CardContent className="pt-6 space-y-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
             <div className="grid grid-cols-2 gap-4">
@@ -383,7 +456,49 @@ export function ProgressTracker() {
             </Button>
           </form>
         </Form>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2"><Weight className="h-5 w-5 text-primary" /> Peso (kg)</CardTitle>
+                </CardHeader>
+                <CardContent className="p-2">
+                    {renderChart(chartDataWeight, yDomainWeight, "hsl(var(--chart-1))", "weight")}
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2"><AreaChart className="h-5 w-5 text-primary" /> IMC</CardTitle>
+                </CardHeader>
+                <CardContent className="p-2">
+                    {renderChart(chartDataBmi, yDomainBmi, "hsl(var(--chart-2))", "imc", <BmiDot />)}
+                     <div className="mt-2 flex flex-wrap justify-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[hsl(210,90%,60%)]"></span>Abaixo</div>
+                        <div className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[hsl(120,60%,47%)]"></span>Ideal</div>
+                        <div className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[hsl(48,95%,50%)]"></span>Sobrepeso</div>
+                        <div className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[hsl(var(--destructive))]"></span>Obesidade</div>
+                    </div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2"><BarChart className="h-5 w-5 text-primary" /> Massa Magra (kg)</CardTitle>
+                </CardHeader>
+                <CardContent className="p-2">
+                    {renderChart(chartDataLeanMass, yDomainLeanMass, "hsl(var(--chart-4))", "leanMass")}
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2"><Percent className="h-5 w-5 text-primary" /> Gordura Corporal (%)</CardTitle>
+                </CardHeader>
+                <CardContent className="p-2">
+                    {renderChart(chartDataBodyFat, yDomainBodyFat, "hsl(var(--chart-5))", "bodyFat")}
+                </CardContent>
+            </Card>
+        </div>
       </CardContent>
     </Card>
   );
 }
+
+    
