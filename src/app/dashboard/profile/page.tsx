@@ -95,6 +95,27 @@ const getBmiCategoryColor = (imc: number | null) => {
     return 'hsl(var(--destructive))';
 };
 
+const CustomTooltipContent = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0];
+      const value = data.value?.toFixed(1);
+      const unit = data.name === 'Gordura Corporal (%)' ? '%' : 'kg';
+      
+      return (
+        <div className="rounded-lg border bg-background p-2 shadow-sm">
+          <div className="grid grid-cols-1 gap-1.5">
+            <p className="text-muted-foreground text-sm">{label}</p>
+            <p className="font-bold text-base" style={{ color: data.stroke }}>
+              {value} {data.name.includes('IMC') ? '' : unit}
+            </p>
+          </div>
+        </div>
+      );
+    }
+  
+    return null;
+  };
+
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
@@ -291,33 +312,33 @@ export default function ProfilePage() {
   const renderChart = () => {
     if (activeChart === 'imc' && !height) {
         return (
-            <div className="flex items-center justify-center h-[350px] bg-muted/50 rounded-lg text-center p-4">
+            <div className="flex items-center justify-center h-[400px] bg-muted/50 rounded-lg text-center p-4">
                 <p className="text-muted-foreground">Informe sua altura para ver a evolução do IMC.</p>
             </div>
         );
     }
     if ((activeChart === 'leanMass' || activeChart === 'bodyFat') && chartData[activeChart].length === 0) {
          return (
-            <div className="flex items-center justify-center h-[350px] bg-muted/50 rounded-lg text-center p-4">
+            <div className="flex items-center justify-center h-[400px] bg-muted/50 rounded-lg text-center p-4">
                 <p className="text-muted-foreground">Registre seu peso e sua gordura corporal para ver esta evolução.</p>
             </div>
         );
     }
     if (activeChartData.length === 0) {
         return (
-            <div className="flex items-center justify-center h-[350px] bg-muted/50 rounded-lg text-center p-4">
+            <div className="flex items-center justify-center h-[400px] bg-muted/50 rounded-lg text-center p-4">
                 <p className="text-muted-foreground">Registre seu progresso para começar a ver sua evolução.</p>
             </div>
         );
     }
 
     return (
-        <ChartContainer config={chartConfig} className="h-[350px] w-full">
-            <LineChart data={activeChartData} margin={{ top: 20, right: 40, left: 0, bottom: 20 }}>
+        <ChartContainer config={chartConfig} className="h-[400px] w-full">
+            <LineChart data={activeChartData} margin={{ top: 20, right: 20, left: -20, bottom: 20 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
-                <YAxis type="number" domain={yDomain} tickLine={false} axisLine={false} tickMargin={8} width={40} fontSize={12} unit={activeChart === 'bodyFat' ? '%' : 'kg'} />
-                <Tooltip cursor={true} content={<ChartTooltipContent indicator="dot" labelKey="date" />} />
+                <YAxis type="number" domain={yDomain} tickLine={false} axisLine={false} tickMargin={8} width={0} fontSize={12} unit={activeChart === 'bodyFat' ? '%' : 'kg'} />
+                <Tooltip cursor={true} content={<CustomTooltipContent />} />
                 
                 {activeChart === 'imc' && (
                     <>
@@ -501,3 +522,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    
