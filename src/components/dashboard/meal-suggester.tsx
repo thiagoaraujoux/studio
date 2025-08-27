@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Apple, Loader2, Download } from "lucide-react";
+import { Apple, Loader2, Download, Copy } from "lucide-react";
 
 import {
   Card,
@@ -77,6 +77,16 @@ export function MealSuggester() {
     URL.revokeObjectURL(url);
   };
 
+  const handleCopy = (content: string) => {
+    if (!content) return;
+    navigator.clipboard.writeText(content).then(() => {
+      toast({
+        title: "Texto Copiado!",
+        description: "A receita foi copiada para sua área de transferência.",
+      });
+    });
+  };
+
   return (
     <Card className="w-full transition-all hover:shadow-lg flex flex-col">
       <CardHeader>
@@ -129,15 +139,23 @@ export function MealSuggester() {
           <div className="grid gap-4 md:grid-cols-2">
             {/* Opção Menos Calórica */}
             <Card>
-              <CardHeader className="flex flex-row items-start justify-between">
-                <div>
-                    <CardTitle className="text-lg">Opção Leve</CardTitle>
-                    <CardDescription>{mealPlan.lessCaloricOption.details}</CardDescription>
+              <CardHeader>
+                <div className="flex flex-row items-start justify-between">
+                    <div>
+                        <CardTitle className="text-lg">Opção Leve</CardTitle>
+                        <CardDescription>{mealPlan.lessCaloricOption.details}</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="icon" onClick={() => handleCopy(mealPlan.lessCaloricOption.recipe)}>
+                            <Copy className="h-4 w-4"/>
+                            <span className="sr-only">Copiar</span>
+                        </Button>
+                        <Button variant="outline" size="icon" onClick={() => handleDownload(mealPlan.lessCaloricOption.recipe, 'refeicao-leve.txt')}>
+                            <Download className="h-4 w-4"/>
+                            <span className="sr-only">Baixar</span>
+                        </Button>
+                    </div>
                 </div>
-                <Button variant="outline" size="icon" onClick={() => handleDownload(mealPlan.lessCaloricOption.recipe, 'refeicao-leve.txt')}>
-                    <Download className="h-4 w-4"/>
-                    <span className="sr-only">Baixar</span>
-                </Button>
               </CardHeader>
               <CardContent>
                 <div className="rounded-lg border bg-muted/30 p-4 whitespace-pre-wrap text-sm">
@@ -148,15 +166,23 @@ export function MealSuggester() {
 
             {/* Opção Mais Calórica */}
              <Card>
-              <CardHeader className="flex flex-row items-start justify-between">
-                <div>
-                    <CardTitle className="text-lg">Opção Power</CardTitle>
-                    <CardDescription>{mealPlan.moreCaloricOption.details}</CardDescription>
+              <CardHeader>
+                <div className="flex flex-row items-start justify-between">
+                    <div>
+                        <CardTitle className="text-lg">Opção Power</CardTitle>
+                        <CardDescription>{mealPlan.moreCaloricOption.details}</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="icon" onClick={() => handleCopy(mealPlan.moreCaloricOption.recipe)}>
+                            <Copy className="h-4 w-4"/>
+                            <span className="sr-only">Copiar</span>
+                        </Button>
+                        <Button variant="outline" size="icon" onClick={() => handleDownload(mealPlan.moreCaloricOption.recipe, 'refeicao-power.txt')}>
+                            <Download className="h-4 w-4"/>
+                            <span className="sr-only">Baixar</span>
+                        </Button>
+                    </div>
                 </div>
-                <Button variant="outline" size="icon" onClick={() => handleDownload(mealPlan.moreCaloricOption.recipe, 'refeicao-power.txt')}>
-                    <Download className="h-4 w-4"/>
-                    <span className="sr-only">Baixar</span>
-                </Button>
               </CardHeader>
               <CardContent>
                 <div className="rounded-lg border bg-muted/30 p-4 whitespace-pre-wrap text-sm">

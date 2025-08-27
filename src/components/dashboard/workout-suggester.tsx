@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Wand2, Loader2, Download } from "lucide-react";
+import { Wand2, Loader2, Download, Copy } from "lucide-react";
 
 import {
   Card,
@@ -77,6 +77,16 @@ export function WorkoutSuggester() {
     URL.revokeObjectURL(url);
   };
 
+  const handleCopy = () => {
+    if (!workoutPlan) return;
+    navigator.clipboard.writeText(workoutPlan).then(() => {
+      toast({
+        title: "Texto Copiado!",
+        description: "O plano de treino foi copiado para sua área de transferência.",
+      });
+    });
+  };
+
   return (
     <Card className="w-full transition-all hover:shadow-lg flex flex-col">
       <CardHeader>
@@ -128,10 +138,16 @@ export function WorkoutSuggester() {
         <>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Seu Treino Sugerido</CardTitle>
-            <Button variant="outline" size="sm" onClick={handleDownload}>
-              <Download className="mr-2 h-4 w-4" />
-              Baixar
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleCopy}>
+                <Copy className="mr-2 h-4 w-4" />
+                Copiar
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDownload}>
+                <Download className="mr-2 h-4 w-4" />
+                Baixar
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="rounded-lg border bg-muted/30 p-4 whitespace-pre-wrap text-sm">
