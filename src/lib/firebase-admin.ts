@@ -9,6 +9,9 @@ const projectId = "vitalize-companion";
 if (!admin.apps.length) {
   try {
     // Inicializa o app com o projectId explícito para garantir a correspondência da audiência.
+    // Em ambientes de desenvolvimento como este, não passar credenciais explícitas
+    // permite que o SDK use as Credenciais Padrão da Aplicação (ADC),
+    // o que resolve o erro "failed to fetch a valid Google OAuth2 access token".
     admin.initializeApp({
       projectId: projectId,
     });
