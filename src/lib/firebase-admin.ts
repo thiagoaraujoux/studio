@@ -1,15 +1,17 @@
 
 import admin from 'firebase-admin';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { initializeApp, getApps } from 'firebase-admin/app';
 
-// Importa as credenciais da conta de serviço do arquivo JSON
-import serviceAccount from '../../vitalize-companion-firebase-adminsdk.json';
+// Quando o código é executado em um ambiente Google Cloud (como o App Hosting),
+// as credenciais são encontradas automaticamente.
+// Para desenvolvimento local, você deve definir a variável de ambiente
+// GOOGLE_APPLICATION_CREDENTIALS para apontar para o seu arquivo de chave de conta de serviço.
+// Ex: export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your/keyfile.json"
 
 if (!getApps().length) {
   try {
-    // Inicializa o SDK do Firebase Admin com as credenciais da conta de serviço
     initializeApp({
-      credential: cert(serviceAccount),
+      projectId: 'vitalize-companion',
     });
   } catch (error) {
     console.error('Firebase admin initialization error', error);
@@ -17,3 +19,4 @@ if (!getApps().length) {
 }
 
 export const authAdmin = admin.auth();
+export const dbAdmin = admin.firestore();
