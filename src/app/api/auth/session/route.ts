@@ -27,9 +27,10 @@ export async function POST(request: NextRequest) {
       }
     }
     return NextResponse.json({ status: 'unauthorized', message: 'Token de autorização ausente ou inválido.' }, { status: 401 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Session login error:', error);
-    return NextResponse.json({ status: 'error', message: 'Internal Server Error' }, { status: 500 });
+    const message = error.message || 'Ocorreu um erro no servidor ao processar sua solicitação.';
+    return NextResponse.json({ status: 'error', message: `Internal Server Error: ${message}` }, { status: 500 });
   }
 }
 

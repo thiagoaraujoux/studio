@@ -39,12 +39,12 @@ export default function LoginPage() {
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  // Unifica a lógica de sucesso de autenticação
-  const handleAuthSuccess = async (user: User, isNewUser: boolean = false) => {
-    if (isNewUser) {
-        await saveUserToFirestore(user);
+  const handleAuthSuccess = async (user: User) => {
+    // Garante que o usuário do Google seja salvo no Firestore na primeira vez.
+    if (user.providerData.some(p => p.providerId === GoogleAuthProvider.PROVIDER_ID)) {
+      await saveUserToFirestore(user);
     }
-    
+
     const idToken = await user.getIdToken();
     const response = await fetch("/api/auth/session", {
       method: "POST",
@@ -55,12 +55,13 @@ export default function LoginPage() {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: "Falha ao criar a sessão do servidor." }));
+      // Lança o erro com a mensagem do servidor para ser capturado no bloco catch.
       throw new Error(errorData.message || "Falha ao criar a sessão do servidor.");
     }
     
     toast({
-        title: `Bem-vindo(a) ${isNewUser ? '' : 'de volta!'}`,
-        description: isNewUser ? "Sua conta foi criada com sucesso." : "Login realizado com sucesso.",
+        title: `Bem-vindo(a) de volta!`,
+        description: "Login realizado com sucesso.",
     });
 
     router.push("/");
@@ -85,7 +86,9 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await handleAuthSuccess(userCredential.user, true);
+      // Salva o novo usuário no Firestore e então lida com o sucesso da autenticação
+      await saveUserToFirestore(userCredential.user);
+      await handleAuthSuccess(userCredential.user);
     } catch (error: any) {
         let description = "Ocorreu um erro desconhecido. Tente novamente.";
         if (error.code) {
@@ -135,15 +138,11 @@ export default function LoginPage() {
     }
   };
 
-
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      // O `saveUserToFirestore` já está dentro do handleAuthSuccess, mas como aqui
-      // não sabemos se é um usuário novo, chamamos ele antes para garantir.
-      await saveUserToFirestore(result.user);
       await handleAuthSuccess(result.user);
     } catch (error: any) {
       toast({
