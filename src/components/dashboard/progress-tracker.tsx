@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Loader2, History, Trash2, Pencil, AreaChart, User } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, History, Trash2, Pencil, AreaChart, User, LineChartIcon } from "lucide-react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {
   getFirestore,
@@ -40,7 +40,7 @@ import {
   ChartTooltipContent,
   ChartConfig,
 } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, Dot } from "recharts";
 import {
   Form,
   FormControl,
@@ -78,6 +78,10 @@ type ProgressEntry = {
 };
 
 const chartConfig = {
+  weight: {
+    label: "Peso (kg)",
+    color: "hsl(var(--muted-foreground))",
+  },
   imc: {
     label: "IMC",
     color: "hsl(var(--primary))",
@@ -99,6 +103,14 @@ const progressFormSchema = z.object({
 });
 
 type ProgressFormValues = z.infer<typeof progressFormSchema>;
+
+const getBmiCategoryColor = (imc: number | null) => {
+    if (imc === null) return 'hsl(var(--muted-foreground))';
+    if (imc < 18.5) return 'hsl(210 90% 55%)'; // Azul
+    if (imc < 25) return 'hsl(120 60% 47%)'; // Verde
+    if (imc < 30) return 'hsl(48 95% 50%)'; // Amarelo
+    return 'hsl(var(--destructive))'; // Vermelho
+};
 
 export function ProgressTracker() {
   const [isLoading, setIsLoading] = useState(false);
@@ -176,6 +188,12 @@ export function ProgressTracker() {
     return () => unsubscribeAuth();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth, db]);
+  
+  const weightChartData = progressHistory.map(entry => ({
+      date: format(entry.date, "PPP", { locale: ptBR }),
+      label: format(entry.date, "dd/MM"),
+      weight: entry.weight,
+  }));
 
   const bmiChartData = height ? progressHistory.map(entry => ({
     date: format(entry.date, "PPP", { locale: ptBR }),
@@ -183,9 +201,13 @@ export function ProgressTracker() {
     imc: parseFloat((entry.weight / (height * height)).toFixed(2)),
   })) : [];
   
-  const yDomain = bmiChartData.length > 0
-    ? [Math.min(...bmiChartData.map(d => d.imc), 15) - 2, Math.max(...bmiChartData.map(d => d.imc), 32) + 2]
-    : [15, 35];
+  const yDomainBmi = bmiChartData.length > 0
+    ? [Math.floor(Math.min(...bmiChartData.map(d => d.imc), 15) / 2) * 2, Math.ceil(Math.max(...bmiChartData.map(d => d.imc), 32) / 2) * 2]
+    : [14, 36];
+    
+  const yDomainWeight = weightChartData.length > 0
+    ? [Math.floor(Math.min(...weightChartData.map(d => d.weight)) / 5) * 5 - 5, Math.ceil(Math.max(...weightChartData.map(d => d.weight)) / 5) * 5 + 5]
+    : [50, 100];
 
 
   async function onSubmit(data: ProgressFormValues) {
@@ -261,6 +283,12 @@ export function ProgressTracker() {
         });
     }
   }
+  
+  const ColoredDot = (props: any) => {
+    const { cx, cy, payload } = props;
+    const color = getBmiCategoryColor(payload.imc);
+    return <Dot cx={cx} cy={cy} r={4} fill={color} stroke="#fff" strokeWidth={1} />;
+  };
 
   return (
     <Card className="transition-all hover:shadow-lg">
@@ -268,7 +296,7 @@ export function ProgressTracker() {
             <CardHeader className="flex flex-row items-center justify-between">
                 <div className="grid gap-0.5">
                     <CardTitle>Acompanhamento de Progresso</CardTitle>
-                    <CardDescription>Registre seu peso e veja a evolução do seu IMC.</CardDescription>
+                    <CardDescription>Registre seu peso e veja sua evolução.</CardDescription>
                 </div>
                 <DialogTrigger asChild>
                     <Button variant="outline" size="icon">
@@ -305,10 +333,26 @@ export function ProgressTracker() {
                                         <Pencil className="h-4 w-4" />
                                         <span className="sr-only">Editar</span>
                                     </Button>
-                                    <Button variant="ghost" size="icon" onClick={() => handleDelete(entry.id)}>
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                        <span className="sr-only">Excluir</span>
-                                    </Button>
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                             <Button variant="ghost" size="icon">
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                                <span className="sr-only">Excluir</span>
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>Confirmar Exclusão</DialogTitle>
+                                                <DialogDescription>
+                                                    Tem certeza que deseja excluir o registro de {format(entry.date, "PPP", { locale: ptBR })}? Esta ação não pode ser desfeita.
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <DialogFooter>
+                                                <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+                                                <Button variant="destructive" onClick={() => handleDelete(entry.id)}>Excluir</Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -400,76 +444,73 @@ export function ProgressTracker() {
             </Button>
           </form>
         </Form>
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-            <AreaChart className="h-5 w-5" />
-            Gráfico de Evolução do IMC
-          </h3>
-          {!height ? (
-             <div className="flex flex-col items-center justify-center h-[200px] bg-muted/50 rounded-lg text-center p-4">
-                <p className="text-muted-foreground">Informe sua altura no perfil para ver o gráfico de IMC.</p>
-                <Button variant="link" asChild className="mt-2">
-                    <Link href="/dashboard/profile">
-                        <User className="mr-2 h-4 w-4"/>
-                        Ir para o Perfil
-                    </Link>
-                </Button>
-             </div>
-          ) : bmiChartData.length > 0 ? (
-            <>
-            <ChartContainer config={chartConfig} className="h-[200px] w-full">
-              <LineChart data={bmiChartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  fontSize={12}
-                />
-                 <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  domain={yDomain}
-                  width={30}
-                  fontSize={12}
-                />
-                <Tooltip
-                  cursor={true}
-                  content={<ChartTooltipContent indicator="dot" labelKey="date" />}
-                />
-                <ReferenceArea y1={0} y2={18.5} fill="hsl(210 90% 70% / 0.1)" stroke="hsl(210 90% 70% / 0.2)" strokeDasharray="3 3" />
-                <ReferenceArea y1={18.5} y2={24.9} fill="hsl(120 60% 47% / 0.1)" stroke="hsl(120 60% 47% / 0.2)" strokeDasharray="3 3" />
-                <ReferenceArea y1={25} y2={29.9} fill="hsl(48 95% 50% / 0.1)" stroke="hsl(48 95% 50% / 0.2)" strokeDasharray="3 3" />
-                <ReferenceArea y1={30} y2={yDomain[1]} fill="hsl(var(--destructive) / 0.1)" stroke="hsl(var(--destructive) / 0.2)" strokeDasharray="3 3" />
-
-                <Line
-                  dataKey="imc"
-                  type="natural"
-                  stroke="var(--color-imc)"
-                  strokeWidth={2}
-                  dot={{
-                    fill: "var(--color-imc)",
-                  }}
-                  activeDot={{
-                    r: 6,
-                  }}
-                />
-              </LineChart>
-            </ChartContainer>
-            <div className="mt-4 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(210,90%,70%)]"></span>Abaixo do Peso</div>
-                <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(120,60%,47%)]"></span>Peso Ideal</div>
-                <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(48,95%,50%)]"></span>Sobrepeso</div>
-                <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(var(--destructive))]"></span>Obesidade</div>
+        <div className="mt-6 space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                <LineChartIcon className="h-5 w-5" />
+                Gráfico de Evolução do Peso
+              </h3>
+               {weightChartData.length > 0 ? (
+                    <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                        <LineChart data={weightChartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
+                            <YAxis tickLine={false} axisLine={false} tickMargin={8} domain={yDomainWeight} width={40} fontSize={12} unit="kg" />
+                            <Tooltip cursor={true} content={<ChartTooltipContent indicator="dot" labelKey="date" />} />
+                            <Line dataKey="weight" type="natural" stroke="var(--color-weight)" strokeWidth={2} dot={{fill: "var(--color-weight)"}} activeDot={{r: 6}} />
+                        </LineChart>
+                    </ChartContainer>
+                ) : (
+                    <div className="flex items-center justify-center h-[200px] bg-muted/50 rounded-lg">
+                        <p className="text-muted-foreground text-center">Registre seu peso para ver a evolução.</p>
+                    </div>
+                )}
             </div>
-            </>
-          ) : (
-             <div className="flex items-center justify-center h-[200px] bg-muted/50 rounded-lg">
-                <p className="text-muted-foreground">Sem dados para exibir. Registre seu primeiro progresso!</p>
-             </div>
-          )}
+            <div>
+              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                <AreaChart className="h-5 w-5" />
+                Gráfico de Evolução do IMC
+              </h3>
+              {!height ? (
+                <div className="flex flex-col items-center justify-center h-[200px] bg-muted/50 rounded-lg text-center p-4">
+                    <p className="text-muted-foreground">Informe sua altura no perfil para ver o gráfico de IMC.</p>
+                    <Button variant="link" asChild className="mt-2">
+                        <Link href="/dashboard/profile">
+                            <User className="mr-2 h-4 w-4"/>
+                            Ir para o Perfil
+                        </Link>
+                    </Button>
+                </div>
+              ) : bmiChartData.length > 0 ? (
+                <>
+                <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                  <LineChart data={bmiChartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
+                    <YAxis tickLine={false} axisLine={false} tickMargin={8} domain={yDomainBmi} width={30} fontSize={12} />
+                    <Tooltip cursor={true} content={<ChartTooltipContent indicator="dot" labelKey="date" />} />
+                    
+                    <ReferenceArea y1={0} y2={18.5} fill="hsl(210 90% 55% / 0.1)" stroke="hsl(210 90% 55% / 0.2)" strokeDasharray="3 3" />
+                    <ReferenceArea y1={18.5} y2={24.9} fill="hsl(120 60% 47% / 0.1)" stroke="hsl(120 60% 47% / 0.2)" strokeDasharray="3 3" />
+                    <ReferenceArea y1={25} y2={29.9} fill="hsl(48 95% 50% / 0.1)" stroke="hsl(48 95% 50% / 0.2)" strokeDasharray="3 3" />
+                    <ReferenceArea y1={30} y2={yDomainBmi[1]} fill="hsl(var(--destructive) / 0.1)" stroke="hsl(var(--destructive) / 0.2)" strokeDasharray="3 3" />
+
+                    <Line dataKey="imc" type="natural" stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} dot={<ColoredDot />} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ChartContainer>
+                <div className="mt-4 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(210,90%,55%)]"></span>Abaixo</div>
+                    <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(120,60%,47%)]"></span>Ideal</div>
+                    <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(48,95%,50%)]"></span>Sobrepeso</div>
+                    <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(var(--destructive))]"></span>Obesidade</div>
+                </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-center h-[200px] bg-muted/50 rounded-lg">
+                    <p className="text-muted-foreground">Sem dados para exibir. Registre seu primeiro progresso!</p>
+                </div>
+              )}
+            </div>
         </div>
       </CardContent>
     </Card>
