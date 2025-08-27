@@ -1,13 +1,13 @@
 
 import admin from 'firebase-admin';
 
-// Garante que a variável de ambiente seja lida.
-const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+// O projectId é codificado diretamente para garantir que o Admin SDK
+// valide os tokens para o projeto correto ("vitalize-companion"), resolvendo
+// o erro de 'incorrect "aud" (audience) claim'.
+const projectId = "vitalize-companion";
 
 if (!admin.apps.length) {
   admin.initializeApp({
-    // A inicialização padrão pode não pegar o projeto correto em alguns ambientes.
-    // Fornecer a credencial e o ID do projeto explicitamente garante a conexão correta.
     credential: admin.credential.applicationDefault(),
     projectId: projectId,
   });
