@@ -53,9 +53,10 @@ export default function LoginPage() {
     }
   };
 
-  const createSession = async (user: User) => {
+  const handleAuthSuccess = async (user: User) => {
     await saveUserToFirestore(user);
     const idToken = await user.getIdToken();
+
     const response = await fetch("/api/auth/session", {
       method: "POST",
       headers: {
@@ -67,61 +68,85 @@ export default function LoginPage() {
       const errorData = await response.json().catch(() => ({ message: "Falha ao criar a sessão do servidor." }));
       throw new Error(errorData.message || "Falha ao criar a sessão do servidor.");
     }
+    
+    toast({
+      title: `Bem-vindo(a)!`,
+      description: "Login realizado com sucesso.",
+    });
+    router.push("/");
   };
   
-  const handleAuth = async (authFunction: Promise<User>) => {
+  const handleAuthError = (error: any) => {
+    let description = "Ocorreu um erro desconhecido. Tente novamente.";
+    // Erros do Firebase Auth
+    if (error.code) {
+      switch (error.code) {
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          description = "Email ou senha inválidos. Por favor, verifique e tente novamente.";
+          break;
+        case 'auth/email-already-in-use':
+          description = "Este e-mail já está em uso por outra conta.";
+          break;
+        case 'auth/weak-password':
+          description = "A senha é muito fraca. Por favor, escolha uma senha mais forte.";
+          break;
+        case 'auth/popup-closed-by-user':
+          description = "A janela de login do Google foi fechada antes da conclusão.";
+          return; // Não mostra toast para este caso
+        default:
+          description = `Erro do Firebase: ${error.message}`;
+      }
+    } else {
+      // Erros da nossa API de sessão ou outros erros
+      description = error.message;
+    }
+
+    toast({
+      title: "Falha na Autenticação",
+      description: description,
+      variant: "destructive",
+    });
+  };
+
+  const handleLogin = async () => {
     setIsLoading(true);
     try {
-      const user = await authFunction;
-      await createSession(user);
-      toast({
-        title: `Bem-vindo(a)!`,
-        description: "Login realizado com sucesso.",
-      });
-      router.push("/");
-    } catch (error: any) {
-      let description = "Ocorreu um erro desconhecido. Tente novamente.";
-      if (error.code) { // Erros do Firebase
-        switch (error.code) {
-          case 'auth/user-not-found':
-          case 'auth/wrong-password':
-          case 'auth/invalid-credential':
-            description = "Email ou senha inválidos. Por favor, verifique e tente novamente.";
-            break;
-          case 'auth/email-already-in-use':
-            description = "Este e-mail já está em uso por outra conta.";
-            break;
-          case 'auth/weak-password':
-            description = "A senha é muito fraca. Por favor, escolha uma senha mais forte.";
-            break;
-          default:
-            description = error.message;
-        }
-      } else { // Erros da nossa API de sessão ou outros
-        description = error.message;
-      }
-      toast({
-        title: "Falha na Autenticação",
-        description: description,
-        variant: "destructive",
-      });
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      await handleAuthSuccess(userCredential.user);
+    } catch (error) {
+      handleAuthError(error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleLogin = () => {
-    handleAuth(signInWithEmailAndPassword(auth, email, password).then(res => res.user));
+  const handleSignUp = async () => {
+    setIsLoading(true);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await handleAuthSuccess(userCredential.user);
+    } catch (error) {
+      handleAuthError(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
-  
-  const handleSignUp = () => {
-    handleAuth(createUserWithEmailAndPassword(auth, email, password).then(res => res.user));
-  };
-  
-  const handleGoogleSignIn = () => {
+
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
     const provider = new GoogleAuthProvider();
-    handleAuth(signInWithPopup(auth, provider).then(res => res.user));
+    try {
+      const result = await signInWithPopup(auth, provider);
+      await handleAuthSuccess(result.user);
+    } catch (error) {
+      handleAuthError(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background">
