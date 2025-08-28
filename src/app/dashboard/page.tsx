@@ -23,7 +23,6 @@ export default function DashboardPage() {
             </div>
             <ProgressTracker />
             <ContentLibrary />
-            <CommunityFeed />
           </div>
 
           {/* Right Column */}
@@ -31,6 +30,7 @@ export default function DashboardPage() {
             <UserProfile />
             <Achievements />
             <ActivityLog />
+            <CommunityFeed />
           </div>
         </div>
       </main>
