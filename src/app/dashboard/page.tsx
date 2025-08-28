@@ -14,37 +14,23 @@ export default function DashboardPage() {
     <div className="flex min-h-screen w-full flex-col bg-background">
       <Header />
       <main className="container flex-1 py-6">
-        <div className="grid auto-rows-max items-start gap-6 lg:grid-cols-2">
-          {/* AI Suggestions */}
-          <div className="lg:col-span-2">
-            <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid auto-rows-max items-start gap-6 lg:grid-cols-3">
+          {/* Main Column */}
+          <div className="grid auto-rows-max items-start gap-6 lg:col-span-2">
+            <div className="grid gap-6 lg:grid-cols-2">
               <WorkoutSuggester />
               <MealSuggester />
             </div>
-          </div>
-          
-          {/* User Profile & Achievements */}
-          <div className="lg:col-span-2">
-            <div className="grid gap-6 md:grid-cols-2">
-              <UserProfile />
-              <Achievements />
-            </div>
-          </div>
-          
-          {/* Progress & Activity */}
-           <div className="lg:col-span-2">
-            <div className="grid gap-6 md:grid-cols-2">
-              <ProgressTracker />
-              <ActivityLog />
-            </div>
+            <ProgressTracker />
+            <ActivityLog />
+            <ContentLibrary />
+            <CommunityFeed />
           </div>
 
-          {/* Main Content */}
-          <div className="lg:col-span-2">
-             <div className="grid gap-6">
-                <ContentLibrary />
-                <CommunityFeed />
-             </div>
+          {/* Right Column */}
+          <div className="grid auto-rows-max items-start gap-6">
+            <UserProfile />
+            <Achievements />
           </div>
         </div>
       </main>
