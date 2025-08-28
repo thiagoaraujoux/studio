@@ -22,15 +22,17 @@ export default function DashboardPage() {
               <MealSuggester />
             </div>
             <ProgressTracker />
-            <ActivityLog />
-            <ContentLibrary />
-            <CommunityFeed />
+            <div className="grid gap-6 lg:grid-cols-2">
+                <ContentLibrary />
+                <CommunityFeed />
+            </div>
           </div>
 
           {/* Right Column */}
           <div className="grid auto-rows-max items-start gap-6">
             <UserProfile />
             <Achievements />
+            <ActivityLog />
           </div>
         </div>
       </main>
