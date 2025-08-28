@@ -43,6 +43,7 @@ const posts = [
 
 export function CommunityFeed() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [visiblePosts, setVisiblePosts] = useState(2);
   const auth = getAuth(app);
 
   useEffect(() => {
@@ -51,6 +52,10 @@ export function CommunityFeed() {
     });
     return () => unsubscribe();
   }, [auth]);
+
+  const handleLoadMore = () => {
+    setVisiblePosts((prev) => prev + 2);
+  };
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || "Usuário";
 
@@ -68,7 +73,7 @@ export function CommunityFeed() {
           <Button>Publicar no Feed</Button>
         </div>
         <div className="space-y-4">
-          {posts.map((post) => (
+          {posts.slice(0, visiblePosts).map((post) => (
             <div key={post.name} className="flex items-start gap-4">
               <Avatar>
                 <AvatarImage src={post.avatar} alt={post.name} data-ai-hint="person portrait"/>
@@ -87,11 +92,13 @@ export function CommunityFeed() {
           ))}
         </div>
       </CardContent>
-      <CardFooter>
-        <Button variant="outline" className="w-full">
-          Carregar Mais
-        </Button>
-      </CardFooter>
+      {visiblePosts < posts.length && (
+        <CardFooter>
+            <Button variant="outline" className="w-full" onClick={handleLoadMore}>
+            Carregar Mais
+            </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 }
