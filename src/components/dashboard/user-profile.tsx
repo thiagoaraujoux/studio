@@ -10,20 +10,50 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { app } from "@/lib/firebase";
+import { app, db } from "@/lib/firebase";
 import { getAuth } from "firebase/auth";
-import { FileText, Mail, User } from "lucide-react";
+import { FileText, Mail, User, Ruler, Weight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
+import { collection, query, orderBy, limit, onSnapshot, getDoc, doc, Timestamp } from "firebase/firestore";
+
+type ProgressEntry = {
+    date: Date;
+    weight: number;
+};
 
 export function UserProfile() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [lastProgress, setLastProgress] = useState<ProgressEntry | null>(null);
+  const [height, setHeight] = useState<number | null>(null);
   const auth = getAuth(app);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      setUser(user);
+    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        const userRef = doc(db, "usuarios", currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists() && userSnap.data().height) {
+            setHeight(userSnap.data().height);
+        }
+
+        const progressRef = collection(db, "usuarios", currentUser.uid, "progresso");
+        const q = query(progressRef, orderBy("date", "desc"), limit(1));
+        const unsubscribeProgress = onSnapshot(q, (snapshot) => {
+            if (!snapshot.empty) {
+                const docData = snapshot.docs[0].data();
+                setLastProgress({
+                    weight: docData.weight,
+                    date: (docData.date as Timestamp).toDate(),
+                });
+            } else {
+                setLastProgress(null);
+            }
+        });
+        return () => unsubscribeProgress();
+      }
     });
     return () => unsubscribe();
   }, [auth]);
@@ -48,7 +78,7 @@ export function UserProfile() {
         </div>
       </CardHeader>
       <CardContent className="p-6 text-sm">
-        <ul className="grid gap-3">
+        <ul className="grid gap-4">
           <li className="flex items-center justify-between">
             <span className="text-muted-foreground flex items-center gap-2">
               <User className="h-4 w-4" />
@@ -61,7 +91,21 @@ export function UserProfile() {
               <Mail className="h-4 w-4" />
               Email
             </span>
-            <span className="truncate">{user?.email}</span>
+            <span className="truncate max-w-[150px]">{user?.email}</span>
+          </li>
+          <li className="flex items-center justify-between">
+            <span className="text-muted-foreground flex items-center gap-2">
+              <Ruler className="h-4 w-4" />
+              Altura
+            </span>
+            <span>{height ? `${height.toFixed(2)} m` : 'N/A'}</span>
+          </li>
+           <li className="flex items-center justify-between">
+            <span className="text-muted-foreground flex items-center gap-2">
+              <Weight className="h-4 w-4" />
+              Peso
+            </span>
+            <span>{lastProgress ? `${lastProgress.weight.toFixed(1)} kg` : 'N/A'}</span>
           </li>
           <li className="flex items-center justify-between">
             <span className="text-muted-foreground flex items-center gap-2">

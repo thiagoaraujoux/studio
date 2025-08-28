@@ -47,11 +47,12 @@ export function Header() {
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-              <Avatar className="h-9 w-9">
+            <Button variant="ghost" className="flex h-auto items-center gap-2 rounded-full p-1 pr-2">
+              <Avatar className="h-8 w-8">
                 <AvatarImage src={currentUser?.photoURL || "https://picsum.photos/100"} alt="Avatar do usuário" data-ai-hint="person" />
                 <AvatarFallback>{displayName.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
               </Avatar>
+               <span className="hidden font-medium md:block">{displayName}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" forceMount>
