@@ -22,10 +22,8 @@ export default function DashboardPage() {
               <MealSuggester />
             </div>
             <ProgressTracker />
-            <div className="grid gap-6 lg:grid-cols-2">
-                <ContentLibrary />
-                <CommunityFeed />
-            </div>
+            <ContentLibrary />
+            <CommunityFeed />
           </div>
 
           {/* Right Column */}
