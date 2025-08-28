@@ -7,10 +7,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Loader2, History, Trash2, Pencil, BarChart, Weight, AreaChart, Percent, LineChartIcon, ChevronsRight } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, History, Trash2, PlusCircle, BarChart, Weight, AreaChart, Percent } from "lucide-react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {
-  getFirestore,
   doc,
   setDoc,
   collection,
@@ -123,6 +122,7 @@ const CustomTooltipContent = ({ active, payload, label, chartType }: { active?: 
 export function ProgressTracker() {
   const [isLoading, setIsLoading] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isAddEntryOpen, setIsAddEntryOpen] = useState(false);
   const [progressHistory, setProgressHistory] = useState<ProgressEntry[]>([]);
   const [height, setHeight] = useState<number | null>(null);
   const { toast } = useToast();
@@ -207,8 +207,8 @@ export function ProgressTracker() {
         title: "Sucesso!",
         description: "Seu progresso foi registrado.",
       });
-      // Reset form to a new entry state
       form.reset({ date: new Date(), weight: data.weight, bodyFat: data.bodyFat || undefined });
+      setIsAddEntryOpen(false); // Close the dialog on success
     } catch (error) {
       console.error("Erro ao registrar progresso: ", error);
       toast({
@@ -302,160 +302,162 @@ export function ProgressTracker() {
   
   return (
     <Card className="transition-all hover:shadow-lg">
-        <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
-            <CardHeader className="flex flex-row items-start justify-between">
-                <div className="grid gap-0.5">
-                    <CardTitle>Acompanhamento de Progresso</CardTitle>
-                    <CardDescription>Registre seu peso e veja sua evolução.</CardDescription>
-                </div>
+      <CardHeader className="flex flex-row items-start justify-between">
+          <div className="grid gap-0.5">
+              <CardTitle>Acompanhamento de Progresso</CardTitle>
+              <CardDescription>Visualize sua evolução e registre seu progresso.</CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Dialog open={isAddEntryOpen} onOpenChange={setIsAddEntryOpen}>
+                <DialogTrigger asChild>
+                    <Button variant="outline" size="icon">
+                        <PlusCircle className="h-4 w-4" />
+                        <span className="sr-only">Adicionar Novo Registro</span>
+                    </Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Adicionar Novo Registro</DialogTitle>
+                        <DialogDescription>
+                            Preencha os campos abaixo para registrar seu progresso hoje.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
+                            <FormField
+                                control={form.control}
+                                name="date"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Data</FormLabel>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
+                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus />
+                                        </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="weight"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Peso (kg)</FormLabel>
+                                    <FormControl>
+                                    <Input type="number" step="0.1" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value)} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="bodyFat"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Gordura Corporal (%)</FormLabel>
+                                    <FormControl>
+                                    <Input type="number" step="0.1" placeholder="Opcional" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value)} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                            <DialogFooter>
+                                <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+                                <Button type="submit" disabled={isLoading}>
+                                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Salvar Registro
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
                 <DialogTrigger asChild>
                     <Button variant="outline" size="icon" disabled={progressHistory.length === 0}>
                         <History className="h-4 w-4" />
                         <span className="sr-only">Ver Histórico</span>
                     </Button>
                 </DialogTrigger>
-            </CardHeader>
-            <DialogContent className="max-w-xl">
-                <DialogHeader>
-                    <DialogTitle>Histórico de Progresso</DialogTitle>
-                    <DialogDescription>
-                        Aqui estão todos os seus registros. Você pode excluir qualquer entrada.
-                    </DialogDescription>
-                </DialogHeader>
-                <ScrollArea className="h-[300px] pr-4">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Data</TableHead>
-                                <TableHead className="text-right">Peso (kg)</TableHead>
-                                <TableHead className="text-right">Gordura Corporal (%)</TableHead>
-                                <TableHead className="text-right">Ações</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                        {progressHistory.length > 0 ? progressHistory.slice().reverse().map((entry) => (
-                            <TableRow key={entry.id}>
-                                <TableCell>{format(entry.date, "dd/MM/yyyy")}</TableCell>
-                                <TableCell className="text-right">{entry.weight.toFixed(1)}</TableCell>
-                                <TableCell className="text-right">{entry.bodyFat ? entry.bodyFat.toFixed(1) : "N/A"}</TableCell>
-                                <TableCell className="text-right">
-                                    <Dialog>
-                                        <DialogTrigger asChild>
-                                             <Button variant="ghost" size="icon">
-                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                                <span className="sr-only">Excluir</span>
-                                            </Button>
-                                        </DialogTrigger>
-                                        <DialogContent>
-                                            <DialogHeader>
-                                                <DialogTitle>Confirmar Exclusão</DialogTitle>
-                                                <DialogDescription>
-                                                    Tem certeza que deseja excluir o registro de {format(entry.date, "PPP", { locale: ptBR })}? Esta ação não pode ser desfeita.
-                                                </DialogDescription>
-                                            </DialogHeader>
-                                            <DialogFooter>
-                                                <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-                                                <Button variant="destructive" onClick={() => handleDelete(entry.id)}>Excluir</Button>
-                                            </DialogFooter>
-                                        </DialogContent>
-                                    </Dialog>
-                                </TableCell>
-                            </TableRow>
-                        )): (
-                            <TableRow>
-                                <TableCell colSpan={4} className="h-24 text-center">
-                                    Nenhum registro encontrado.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                        </TableBody>
-                    </Table>
-                </ScrollArea>
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button variant="outline">Fechar</Button>
-                    </DialogClose>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                <DialogContent className="max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>Histórico de Progresso</DialogTitle>
+                        <DialogDescription>
+                            Aqui estão todos os seus registros. Você pode excluir qualquer entrada.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="h-[300px] pr-4">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Data</TableHead>
+                                    <TableHead className="text-right">Peso (kg)</TableHead>
+                                    <TableHead className="text-right">Gordura Corporal (%)</TableHead>
+                                    <TableHead className="text-right">Ações</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                            {progressHistory.length > 0 ? progressHistory.slice().reverse().map((entry) => (
+                                <TableRow key={entry.id}>
+                                    <TableCell>{format(entry.date, "dd/MM/yyyy")}</TableCell>
+                                    <TableCell className="text-right">{entry.weight.toFixed(1)}</TableCell>
+                                    <TableCell className="text-right">{entry.bodyFat ? entry.bodyFat.toFixed(1) : "N/A"}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Dialog>
+                                            <DialogTrigger asChild>
+                                                <Button variant="ghost" size="icon">
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                    <span className="sr-only">Excluir</span>
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent>
+                                                <DialogHeader>
+                                                    <DialogTitle>Confirmar Exclusão</DialogTitle>
+                                                    <DialogDescription>
+                                                        Tem certeza que deseja excluir o registro de {format(entry.date, "PPP", { locale: ptBR })}? Esta ação não pode ser desfeita.
+                                                    </DialogDescription>
+                                                </DialogHeader>
+                                                <DialogFooter>
+                                                    <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+                                                    <Button variant="destructive" onClick={() => handleDelete(entry.id)}>Excluir</Button>
+                                                </DialogFooter>
+                                            </DialogContent>
+                                        </Dialog>
+                                    </TableCell>
+                                </TableRow>
+                            )): (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="h-24 text-center">
+                                        Nenhum registro encontrado.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button variant="outline">Fechar</Button>
+                        </DialogClose>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+          </div>
+      </CardHeader>
       <CardContent className="pt-6 space-y-6">
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="weight"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Peso (kg)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.1" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value)} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="bodyFat"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Gordura Corporal (%)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.1" placeholder="Opcional" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value)} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-             <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Data</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP", { locale: ptBR })
-                          ) : (
-                            <span>Escolha uma data</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date) =>
-                          date > new Date() || date < new Date("1900-01-01")
-                        }
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Salvar Registro
-            </Button>
-          </form>
-        </Form>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
                 <CardHeader>
