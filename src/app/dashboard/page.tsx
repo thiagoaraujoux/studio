@@ -17,10 +17,8 @@ export default function DashboardPage() {
         <div className="grid auto-rows-max items-start gap-6 lg:grid-cols-3">
           {/* Main Column */}
           <div className="grid auto-rows-max items-start gap-6 lg:col-span-2">
-            <div className="grid gap-6 lg:grid-cols-2">
-              <WorkoutSuggester />
-              <MealSuggester />
-            </div>
+            <WorkoutSuggester />
+            <MealSuggester />
             <ProgressTracker />
             <ContentLibrary />
           </div>
