@@ -16,11 +16,20 @@ import { useRouter } from "next/navigation";
 import { getAuth, signOut } from "firebase/auth";
 import { app } from "@/lib/firebase";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import type { User as FirebaseUser } from "firebase/auth";
 
 export function Header() {
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const router = useRouter();
   const auth = getAuth(app);
-  const currentUser = auth.currentUser;
+  
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, [auth]);
 
   const handleSignOut = async () => {
     try {
@@ -33,7 +42,7 @@ export function Header() {
     }
   };
 
-  const displayName = currentUser?.displayName || currentUser?.email?.split('@')[0] || "Usuário";
+  const displayName = user?.displayName || user?.email?.split('@')[0] || "Usuário";
 
 
   return (
@@ -49,7 +58,7 @@ export function Header() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex h-auto items-center gap-2 rounded-full p-1 pr-2">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={currentUser?.photoURL || "https://picsum.photos/100"} alt="Avatar do usuário" data-ai-hint="person" />
+                <AvatarImage src={user?.photoURL || "https://picsum.photos/100"} alt="Avatar do usuário" data-ai-hint="person" />
                 <AvatarFallback>{displayName.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
               </Avatar>
                <span className="hidden font-medium md:block">{displayName}</span>
@@ -60,7 +69,7 @@ export function Header() {
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">{displayName}</p>
                 <p className="text-xs leading-none text-muted-foreground">
-                  {currentUser?.email}
+                  {user?.email}
                 </p>
               </div>
             </DropdownMenuLabel>

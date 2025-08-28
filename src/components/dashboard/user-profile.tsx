@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { app, db } from "@/lib/firebase";
 import { getAuth } from "firebase/auth";
-import { FileText, Mail, User, Ruler, Weight } from "lucide-react";
+import { FileText, User, Ruler, Weight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
@@ -85,13 +85,6 @@ export function UserProfile() {
               Nome de usuário
             </span>
             <span>@{userName}</span>
-          </li>
-          <li className="flex items-center justify-between">
-            <span className="text-muted-foreground flex items-center gap-2">
-              <Mail className="h-4 w-4" />
-              Email
-            </span>
-            <span className="truncate max-w-[150px]">{user?.email}</span>
           </li>
           <li className="flex items-center justify-between">
             <span className="text-muted-foreground flex items-center gap-2">
