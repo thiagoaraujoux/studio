@@ -60,14 +60,15 @@ export function UserProfile() {
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || "Usuário";
   const userName = user?.email?.split('@')[0] || "usuario";
+  const displayInitial = displayName?.charAt(0).toUpperCase() || 'U';
 
   return (
     <Card className="overflow-hidden transition-all hover:shadow-lg">
       <CardHeader className="flex flex-row items-start bg-muted/50">
         <div className="flex items-center gap-4">
           <Avatar className="h-16 w-16 border">
-            <AvatarImage src={user?.photoURL || "https://picsum.photos/100"} alt="Avatar do usuário" data-ai-hint="person" />
-            <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
+            <AvatarImage src={user?.photoURL || undefined} alt="Avatar do usuário" data-ai-hint="person" />
+            <AvatarFallback>{displayInitial}</AvatarFallback>
           </Avatar>
           <div className="grid gap-0.5">
             <CardTitle className="group flex items-center gap-2 text-lg">

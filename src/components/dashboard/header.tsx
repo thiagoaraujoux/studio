@@ -26,16 +26,18 @@ export function Header() {
   
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
-      setUser(currentUser);
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        router.push('/login');
+      }
     });
     return () => unsubscribe();
-  }, [auth]);
+  }, [auth, router]);
 
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      // Since we are not using server-side sessions anymore,
-      // we just need to sign out from the client and redirect.
       router.push('/login');
     } catch (error) {
       console.error("Error signing out: ", error);
@@ -43,6 +45,7 @@ export function Header() {
   };
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || "Usuário";
+  const displayInitial = displayName?.charAt(0).toUpperCase() || 'U';
 
 
   return (
@@ -54,39 +57,41 @@ export function Header() {
             Companheiro Vitalize
           </h1>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex h-auto items-center gap-2 rounded-full p-1 pr-2">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.photoURL || "https://picsum.photos/100"} alt="Avatar do usuário" data-ai-hint="person" />
-                <AvatarFallback>{displayName.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
-              </Avatar>
-               <span className="hidden font-medium md:block">{displayName}</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{displayName}</p>
-                <p className="text-xs leading-none text-muted-foreground">
-                  {user?.email}
-                </p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/dashboard/profile">
-                <User className="mr-2 h-4 w-4" />
-                <span>Perfil</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Sair</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {user && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="flex h-auto items-center gap-2 rounded-full p-1 pr-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user.photoURL || undefined} alt="Avatar do usuário" data-ai-hint="person" />
+                  <AvatarFallback>{displayInitial}</AvatarFallback>
+                </Avatar>
+                <span className="hidden font-medium md:block">{displayName}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">{displayName}</p>
+                  <p className="text-xs leading-none text-muted-foreground">
+                    {user.email}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/profile">
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Perfil</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sair</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </header>
   );
